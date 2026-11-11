@@ -1,8 +1,9 @@
 'use client';
 
 import { OrbitControls } from '@react-three/drei';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useState } from 'react';
+import type { PerspectiveCamera } from 'three';
 import { useGame } from '@/state/store';
 import { Board } from './Board';
 import { PieceActor } from './Piece';
@@ -11,6 +12,18 @@ import { tickTweens } from './tween';
 
 function TweenTicker() {
   useFrame((_, delta) => tickTweens(delta * 1000));
+  return null;
+}
+
+/** Widens the field of view on narrow canvases so the whole board stays in frame. */
+function FitCamera() {
+  const camera = useThree((s) => s.camera) as PerspectiveCamera;
+  const aspect = useThree((s) => s.size.width / s.size.height);
+  useEffect(() => {
+    const half = Math.tan((CAMERA.fov * Math.PI) / 360);
+    camera.fov = (Math.atan(half * Math.max(1, CAMERA.fitAspect / aspect)) * 360) / Math.PI;
+    camera.updateProjectionMatrix();
+  }, [camera, aspect]);
   return null;
 }
 
@@ -38,11 +51,12 @@ export default function Scene() {
   }
 
   return (
-    <Canvas shadows camera={CAMERA} onPointerMissed={() => select(null)}>
+    <Canvas shadows camera={{ position: CAMERA.position, fov: CAMERA.fov }} onPointerMissed={() => select(null)}>
       <color attach="background" args={[PALETTE.background]} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[5, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
       <TweenTicker />
+      <FitCamera />
       <Board />
       {pieces.map((piece) => (
         <PieceActor key={piece.id} piece={piece} />

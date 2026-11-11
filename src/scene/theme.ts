@@ -34,4 +34,5 @@ export const TIMING = {
 
 export const STAND_OFF = 0.7; // squares between attacker and defender during a fight
 
-export const CAMERA = { position: [0, 10, 9] as [number, number, number], fov: 36 };
+// fitAspect: the narrowest width/height at which `fov` still shows the whole board
+export const CAMERA = { position: [0, 10, 9] as [number, number, number], fov: 36, fitAspect: 1.33 };

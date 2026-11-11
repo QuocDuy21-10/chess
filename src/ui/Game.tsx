@@ -1,6 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { GameOverModal } from './GameOverModal';
+import { Hud } from './Hud';
+import { PromotionChooser } from './PromotionChooser';
 
 // The 3D scene needs the browser, so it is never rendered on the server.
 const Scene = dynamic(() => import('@/scene/Scene'), {
@@ -14,6 +17,9 @@ export function Game() {
       <div className="min-h-0 flex-1">
         <Scene />
       </div>
+      <Hud />
+      <PromotionChooser />
+      <GameOverModal />
     </main>
   );
 }
