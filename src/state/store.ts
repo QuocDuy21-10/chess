@@ -1,0 +1,128 @@
+import { Chess, type Color, type Move, type Square } from 'chess.js';
+import { create } from 'zustand';
+import { planMove } from '@/game/planMove';
+import { matchesBoard, piecesFromBoard } from '@/game/position';
+import type { Piece, PromotionPiece } from '@/game/types';
+import { actors } from '@/scene/actors';
+import { runSteps } from '@/scene/sequencer';
+import { TEAM_NAME } from '@/scene/theme';
+
+type Phase = 'idle' | 'animating' | 'promoting' | 'gameOver';
+
+interface GameState {
+  pieces: Piece[];
+  selected: Square | null;
+  targets: Move[]; // legal moves from the selected square
+  phase: Phase;
+  pendingPromotion: { from: Square; to: Square } | null;
+  history: string[]; // SAN
+  lastMove: { from: Square; to: Square } | null;
+  turn: Color;
+  inCheck: boolean;
+  result: string | null;
+  select(square: Square | null): void;
+  submitMove(from: Square, to: Square, promotion?: PromotionPiece): Promise<void>;
+  submitText(text: string): boolean;
+  choosePromotion(piece: PromotionPiece): void;
+  cancelPromotion(): void;
+  newGame(): void;
+}
+
+// chess.js is the single source of truth for rules and position.
+const chess = new Chess();
+
+function gameResult(): string | null {
+  if (chess.isCheckmate()) return `Checkmate — ${TEAM_NAME[chess.turn() === 'w' ? 'b' : 'w']} wins`;
+  if (chess.isStalemate()) return 'Draw — stalemate';
+  if (chess.isInsufficientMaterial()) return 'Draw — insufficient material';
+  if (chess.isThreefoldRepetition()) return 'Draw — threefold repetition';
+  if (chess.isDrawByFiftyMoves()) return 'Draw — fifty-move rule';
+  return null;
+}
+
+const fresh = () => ({
+  pieces: piecesFromBoard(chess),
+  selected: null,
+  targets: [],
+  phase: 'idle' as Phase,
+  pendingPromotion: null,
+  history: [],
+  lastMove: null,
+  turn: 'w' as Color,
+  inCheck: false,
+  result: null,
+});
+
+export const useGame = create<GameState>((set, get) => ({
+  ...fresh(),
+
+  select(square) {
+    if (get().phase !== 'idle') return;
+    const { selected, targets } = get();
+    if (square && selected && targets.some((m) => m.to === square)) {
+      if (targets.some((m) => m.to === square && m.promotion)) {
+        set({ phase: 'promoting', pendingPromotion: { from: selected, to: square }, selected: null, targets: [] });
+      } else {
+        void get().submitMove(selected, square);
+      }
+      return;
+    }
+    // empty squares and the opponent's pieces have no legal moves, so they clear the selection
+    const moves = square ? chess.moves({ square, verbose: true }) : [];
+    set(moves.length ? { selected: square, targets: moves } : { selected: null, targets: [] });
+  },
+
+  async submitMove(from, to, promotion) {
+    const { phase } = get();
+    if (phase !== 'idle' && phase !== 'promoting') return;
+    let move: Move;
+    try {
+      move = chess.move({ from, to, promotion });
+    } catch {
+      return; // illegal move: ignore
+    }
+    const steps = planMove(move, get().pieces);
+    set({ phase: 'animating', selected: null, targets: [], pendingPromotion: null });
+    await runSteps(steps, { actors, getPieces: () => get().pieces, setPieces: (pieces) => set({ pieces }) });
+    if (!matchesBoard(get().pieces, chess)) {
+      console.error('View out of sync with chess.js after', move.san, '— resyncing');
+      set({ pieces: piecesFromBoard(chess) });
+    }
+    const result = gameResult();
+    set({
+      phase: result ? 'gameOver' : 'idle',
+      history: chess.history(),
+      lastMove: { from, to },
+      turn: chess.turn(),
+      inCheck: chess.inCheck(),
+      result,
+    });
+  },
+
+  submitText(text) {
+    if (get().phase !== 'idle') return false;
+    const typed = text.trim();
+    const bare = (san: string) => san.replace(/[+#]/g, '');
+    const move = chess
+      .moves({ verbose: true })
+      .find((m) => bare(m.san) === bare(typed) || m.lan === typed.toLowerCase());
+    if (!move) return false;
+    void get().submitMove(move.from, move.to, move.promotion as PromotionPiece | undefined);
+    return true;
+  },
+
+  choosePromotion(piece) {
+    const pending = get().pendingPromotion;
+    if (pending) void get().submitMove(pending.from, pending.to, piece);
+  },
+
+  cancelPromotion() {
+    if (get().phase === 'promoting') set({ phase: 'idle', pendingPromotion: null });
+  },
+
+  newGame() {
+    if (get().phase === 'animating') return;
+    chess.reset();
+    set(fresh());
+  },
+}));
