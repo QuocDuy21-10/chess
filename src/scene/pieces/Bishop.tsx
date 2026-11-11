@@ -28,8 +28,8 @@ export function Bishop({ color, ref }: PieceModelProps) {
   return (
     <Robed
       color={color}
-      root={root}
-      arm={arm}
+      rootRef={root}
+      armRef={arm}
       hat={
         <mesh position={[0, 0.02, -0.02]} castShadow>
           <coneGeometry args={[0.17, 0.3, 10]} />

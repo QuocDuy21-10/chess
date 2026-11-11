@@ -58,7 +58,6 @@ export function PieceActor({ piece }: { piece: Piece }) {
     };
     actors.set(piece.id, handle);
     return () => void actors.delete(piece.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the handle only reads refs
   }, [piece.id]);
 
   // Snap to the square whenever it changes. After an animated move the piece is already there,

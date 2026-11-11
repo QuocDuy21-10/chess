@@ -27,8 +27,8 @@ export function Queen({ color, ref }: PieceModelProps) {
   return (
     <Robed
       color={color}
-      root={root}
-      arm={arm}
+      rootRef={root}
+      armRef={arm}
       height={1.15}
       hat={
         <mesh position={[0, 0.04, 0]} castShadow>

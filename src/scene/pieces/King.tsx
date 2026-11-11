@@ -25,8 +25,8 @@ export function King({ color, ref }: PieceModelProps) {
   return (
     <Robed
       color={color}
-      root={root}
-      arm={arm}
+      rootRef={root}
+      armRef={arm}
       height={1.25}
       hat={
         <>
