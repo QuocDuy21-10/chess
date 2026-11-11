@@ -12,7 +12,7 @@ export const PALETTE = {
   selected: '#FDE68A',
   lastMove: '#A3B18A',
   check: '#DC2626',
-  marker: '#FDE68A',
+  marker: '#16A34A',
   background: '#1C1917',
 } as const;
 
@@ -34,4 +34,4 @@ export const TIMING = {
 
 export const STAND_OFF = 0.7; // squares between attacker and defender during a fight
 
-export const CAMERA = { position: [0, 8.5, 7.5] as [number, number, number], fov: 36 };
+export const CAMERA = { position: [0, 10, 9] as [number, number, number], fov: 36 };
