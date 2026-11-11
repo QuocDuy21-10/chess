@@ -107,7 +107,7 @@ npm install chess.js@1.4.0 zustand@5.1.0 three@0.187.0 @react-three/fiber@9.8.2 
 ```
 
 ```bash
-npm install -D vitest@5.1.0 @types/three@0.187.0
+npm install -D vitest@5.1.0 @types/three@0.187.0 @types/node@^22
 ```
 
 ```bash
