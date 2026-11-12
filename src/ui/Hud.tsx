@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
-import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
 import { resultText, useT } from './i18n';
 
-export function Hud() {
+export function Hud({ onPause }: { onPause: () => void }) {
   const t = useT();
   const turn = useGame((s) => s.turn);
   const inCheck = useGame((s) => s.inCheck);
@@ -14,10 +13,7 @@ export function Hud() {
   const phase = useGame((s) => s.phase);
   const result = useGame((s) => s.result);
   const submitText = useGame((s) => s.submitText);
-  const newGame = useGame((s) => s.newGame);
   const undo = useGame((s) => s.undo);
-  const muted = useSettings((s) => s.muted);
-  const update = useSettings((s) => s.update);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
 
@@ -46,12 +42,8 @@ export function Hud() {
     <aside className="flex w-full flex-col gap-4 bg-stone-900 p-4 text-stone-100 md:w-72">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{t.title}</h1>
-        <button
-          onClick={() => update({ muted: !muted })}
-          aria-pressed={!muted}
-          className="rounded-lg border border-stone-600 px-3 py-1 text-sm hover:bg-stone-800"
-        >
-          {muted ? 'Sound off' : 'Sound on'}
+        <button onClick={onPause} className="rounded-lg border border-stone-600 px-3 py-1 text-sm hover:bg-stone-800">
+          {t.pause}
         </button>
       </div>
 
@@ -124,14 +116,6 @@ export function Hud() {
         className="rounded-lg border border-stone-600 px-3 py-2 hover:bg-stone-800 disabled:opacity-50"
       >
         {t.undo}
-      </button>
-
-      <button
-        onClick={newGame}
-        disabled={phase === 'animating'}
-        className="rounded-lg border border-stone-600 px-3 py-2 hover:bg-stone-800 disabled:opacity-50"
-      >
-        {t.newGame}
       </button>
     </aside>
   );
