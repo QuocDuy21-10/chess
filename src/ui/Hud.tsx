@@ -2,11 +2,12 @@
 
 import { useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
-import { TEAM_NAME } from '@/scene/theme';
 import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
+import { resultText, useT } from './i18n';
 
 export function Hud() {
+  const t = useT();
   const turn = useGame((s) => s.turn);
   const inCheck = useGame((s) => s.inCheck);
   const history = useGame((s) => s.history);
@@ -27,18 +28,19 @@ export function Hud() {
       setError('');
     } else {
       play('error');
-      setError(`"${text}" is not a legal move here. Try a move like Nf3 or g1f3.`);
+      setError(t.illegal(text));
     }
   }
 
   const rows = [];
   for (let i = 0; i < history.length; i += 2) rows.push(history.slice(i, i + 2));
-  const mover = TEAM_NAME[turn === 'w' ? 'b' : 'w']; // who made the latest move
+  const mover = t.team[turn === 'w' ? 'b' : 'w']; // who made the latest move
+  const outcome = result && resultText(t, result);
 
   return (
     <aside className="flex w-full flex-col gap-4 bg-stone-900 p-4 text-stone-100 md:w-72">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Chess</h1>
+        <h1 className="text-xl font-bold">{t.title}</h1>
         <button
           onClick={() => update({ muted: !muted })}
           aria-pressed={!muted}
@@ -49,17 +51,17 @@ export function Hud() {
       </div>
 
       <p className="text-lg">
-        {result ?? `${TEAM_NAME[turn]} to move`}
-        {!result && inCheck && <span className="ml-2 font-semibold text-red-400">Check</span>}
+        {outcome ?? t.toMove(t.team[turn])}
+        {!result && inCheck && <span className="ml-2 font-semibold text-red-400">{t.check}</span>}
       </p>
 
       <p aria-live="polite" className="sr-only">
-        {history.length > 0 && `${mover} played ${history.at(-1)}.`} {result}
+        {history.length > 0 && t.played(mover, history.at(-1)!)} {outcome}
       </p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-1">
         <label htmlFor="move" className="text-sm text-stone-300">
-          Type a move
+          {t.typeMove}
         </label>
         <div className="flex gap-2">
           <input
@@ -77,7 +79,7 @@ export function Hud() {
             disabled={phase !== 'idle'}
             className="rounded-lg bg-amber-600 px-3 py-2 font-medium hover:bg-amber-500 disabled:opacity-50"
           >
-            Move
+            {t.move}
           </button>
         </div>
         {error && (
@@ -87,7 +89,7 @@ export function Hud() {
         )}
       </form>
 
-      <ol aria-label="Moves" className="min-h-24 flex-1 overflow-y-auto font-mono text-sm">
+      <ol aria-label={t.moves} className="min-h-24 flex-1 overflow-y-auto font-mono text-sm">
         {rows.map(([first, second], i) => (
           <li key={i} className="grid grid-cols-[2rem_1fr_1fr] gap-2 py-0.5">
             <span className="text-stone-500">{i + 1}.</span>
@@ -102,7 +104,7 @@ export function Hud() {
         disabled={phase === 'animating'}
         className="rounded-lg border border-stone-600 px-3 py-2 hover:bg-stone-800 disabled:opacity-50"
       >
-        New game
+        {t.newGame}
       </button>
     </aside>
   );

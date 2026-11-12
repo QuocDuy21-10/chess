@@ -84,7 +84,7 @@ test('cancelling a promotion returns to idle without moving', async () => {
 test('checkmate ends the game and names the winner', async () => {
   await play('f3', 'e5', 'g4', 'Qh4#');
   expect(game().phase).toBe('gameOver');
-  expect(game().result).toBe('Checkmate — Teal wins');
+  expect(game().result).toEqual({ reason: 'checkmate', winner: 'b' });
   expect(game().inCheck).toBe(true);
   game().select('e2'); // no input after the game ends
   expect(game().selected).toBeNull();
@@ -103,7 +103,7 @@ test('stalemate is a draw', async () => {
     'Qxd7+', 'Kf7', 'Qxb7', 'Qd3', 'Qxb8', 'Qh7', 'Qxc8', 'Kg6', 'Qe6',
   );
   expect(game().phase).toBe('gameOver');
-  expect(game().result).toBe('Draw — stalemate');
+  expect(game().result).toEqual({ reason: 'stalemate' });
 });
 
 test('the view never drifts from chess.js through castles, en passant and promotion', async () => {

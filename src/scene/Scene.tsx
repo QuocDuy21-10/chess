@@ -3,6 +3,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useState } from 'react';
 import { useGame } from '@/state/store';
+import { useT } from '@/ui/i18n';
 import { Board } from './Board';
 import { CameraRig } from './CameraRig';
 import { PieceActor } from './Piece';
@@ -27,12 +28,12 @@ export default function Scene() {
   const pieces = useGame((s) => s.pieces);
   const select = useGame((s) => s.select);
   const [webgl] = useState(hasWebGL);
+  const t = useT();
 
   if (!webgl) {
     return (
       <p role="alert" className="p-8 text-center text-stone-200">
-        This game needs WebGL 2, which this browser or device does not provide. You can still follow and
-        enter moves in the panel.
+        {t.noWebGL}
       </p>
     );
   }

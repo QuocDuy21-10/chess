@@ -17,7 +17,6 @@ export const PALETTE = {
 } as const;
 
 export const TEAM = { w: PALETTE.amber, b: PALETTE.teal } as const;
-export const TEAM_NAME = { w: 'Amber', b: 'Teal' } as const;
 
 // Starting values, tuned by eye.
 export const TIMING = {

@@ -4,11 +4,11 @@ import { duck, fadeMusic, play } from '@/audio/audio';
 import { planMove } from '@/game/planMove';
 import { matchesBoard, piecesFromBoard } from '@/game/position';
 import { squareToWorld } from '@/game/squares';
-import type { Piece, PromotionPiece } from '@/game/types';
+import type { Piece, PromotionPiece, Result } from '@/game/types';
 import { actors } from '@/scene/actors';
 import { cameraRig } from '@/scene/cameraHandle';
 import { runSteps } from '@/scene/sequencer';
-import { CAMERA, TEAM_NAME } from '@/scene/theme';
+import { CAMERA } from '@/scene/theme';
 
 type Phase = 'idle' | 'animating' | 'promoting' | 'gameOver';
 
@@ -22,7 +22,7 @@ interface GameState {
   lastMove: { from: Square; to: Square } | null;
   turn: Color;
   inCheck: boolean;
-  result: string | null;
+  result: Result | null;
   cinematic: boolean; // letterbox bars are showing
   gameId: number; // changes on every new game
   select(square: Square | null): void;
@@ -36,12 +36,12 @@ interface GameState {
 // chess.js is the single source of truth for rules and position.
 const chess = new Chess();
 
-function gameResult(): string | null {
-  if (chess.isCheckmate()) return `Checkmate — ${TEAM_NAME[chess.turn() === 'w' ? 'b' : 'w']} wins`;
-  if (chess.isStalemate()) return 'Draw — stalemate';
-  if (chess.isInsufficientMaterial()) return 'Draw — insufficient material';
-  if (chess.isThreefoldRepetition()) return 'Draw — threefold repetition';
-  if (chess.isDrawByFiftyMoves()) return 'Draw — fifty-move rule';
+function gameResult(): Result | null {
+  if (chess.isCheckmate()) return { reason: 'checkmate', winner: chess.turn() === 'w' ? 'b' : 'w' };
+  if (chess.isStalemate()) return { reason: 'stalemate' };
+  if (chess.isInsufficientMaterial()) return { reason: 'insufficient' };
+  if (chess.isThreefoldRepetition()) return { reason: 'threefold' };
+  if (chess.isDrawByFiftyMoves()) return { reason: 'fifty' };
   return null;
 }
 
@@ -55,7 +55,7 @@ const fresh = () => ({
   lastMove: null,
   turn: 'w' as Color,
   inCheck: false,
-  result: null,
+  result: null as Result | null,
   cinematic: false,
 });
 

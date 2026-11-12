@@ -1,0 +1,114 @@
+import type { Result } from '@/game/types';
+import { useSettings } from '@/state/settings';
+
+const en = {
+  title: 'Combat Chess',
+  team: { w: 'Amber', b: 'Teal' },
+  toMove: (team: string) => `${team} to move`,
+  check: 'Check',
+  played: (team: string, san: string) => `${team} played ${san}.`,
+  checkmate: (team: string) => `Checkmate — ${team} wins`,
+  draw: {
+    stalemate: 'Draw — stalemate',
+    insufficient: 'Draw — insufficient material',
+    threefold: 'Draw — threefold repetition',
+    fifty: 'Draw — fifty-move rule',
+  },
+  typeMove: 'Type a move',
+  move: 'Move',
+  illegal: (text: string) => `"${text}" is not a legal move here. Try a move like Nf3 or g1f3.`,
+  moves: 'Moves',
+  undo: 'Undo',
+  pause: 'Pause',
+  close: 'Close',
+  promoteLabel: 'Choose a piece to promote to',
+  promoteTo: 'Promote to',
+  piece: { q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight' },
+  cancel: 'Cancel',
+  gameOver: 'Game over',
+  newGame: 'New game',
+  viewBoard: 'View board',
+  loading: 'Loading the board…',
+  noWebGL:
+    'This game needs WebGL 2, which this browser or device does not provide. You can still follow and enter moves in the panel.',
+  mode: 'Mode',
+  twoPlayers: 'Two players',
+  sideLabel: 'Army nearest you',
+  start: 'Start',
+  resume: 'Continue',
+  settings: 'Settings',
+  paused: 'Paused',
+  restart: 'Restart',
+  restartConfirm: 'Restart from the first move?',
+  yes: 'Yes',
+  no: 'No',
+  mainMenu: 'Main menu',
+  language: 'Language',
+  musicVolume: 'Music volume',
+  sfxVolume: 'Effects volume',
+  mute: 'Mute all sound',
+  done: 'Done',
+};
+
+export type Strings = typeof en;
+
+// `Strings` makes a missing or misspelt key a type error.
+const vi: Strings = {
+  title: 'Combat Chess',
+  team: { w: 'Cam', b: 'Lục' },
+  toMove: (team) => `Lượt của ${team}`,
+  check: 'Chiếu',
+  played: (team, san) => `${team} đi ${san}.`,
+  checkmate: (team) => `Chiếu hết — ${team} thắng`,
+  draw: {
+    stalemate: 'Hòa — hết nước đi',
+    insufficient: 'Hòa — không đủ quân để chiếu hết',
+    threefold: 'Hòa — lặp lại ba lần',
+    fifty: 'Hòa — luật 50 nước',
+  },
+  typeMove: 'Nhập nước đi',
+  move: 'Đi',
+  illegal: (text) => `"${text}" không phải nước đi hợp lệ. Hãy thử kiểu Nf3 hoặc g1f3.`,
+  moves: 'Nước đi',
+  undo: 'Đi lại',
+  pause: 'Tạm dừng',
+  close: 'Đóng',
+  promoteLabel: 'Chọn quân để phong cấp',
+  promoteTo: 'Phong cấp thành',
+  piece: { q: 'Hậu', r: 'Xe', b: 'Tượng', n: 'Mã' },
+  cancel: 'Hủy',
+  gameOver: 'Kết thúc ván',
+  newGame: 'Ván mới',
+  viewBoard: 'Xem bàn cờ',
+  loading: 'Đang tải bàn cờ…',
+  noWebGL:
+    'Trò chơi cần WebGL 2 mà trình duyệt hoặc thiết bị này không hỗ trợ. Bạn vẫn có thể theo dõi và nhập nước đi ở bảng bên cạnh.',
+  mode: 'Chế độ',
+  twoPlayers: 'Hai người chơi',
+  sideLabel: 'Phe đứng gần bạn',
+  start: 'Bắt đầu',
+  resume: 'Tiếp tục',
+  settings: 'Cài đặt',
+  paused: 'Tạm dừng',
+  restart: 'Chơi lại',
+  restartConfirm: 'Chơi lại từ nước đầu tiên?',
+  yes: 'Có',
+  no: 'Không',
+  mainMenu: 'Menu chính',
+  language: 'Ngôn ngữ',
+  musicVolume: 'Âm lượng nhạc',
+  sfxVolume: 'Âm lượng hiệu ứng',
+  mute: 'Tắt toàn bộ âm thanh',
+  done: 'Xong',
+};
+
+const STRINGS = { en, vi };
+
+/** The string table for the language chosen in Settings. */
+export function useT(): Strings {
+  return STRINGS[useSettings((s) => s.lang)];
+}
+
+export function resultText(t: Strings, result: Result): string {
+  return result.reason === 'checkmate' ? t.checkmate(t.team[result.winner]) : t.draw[result.reason];
+}

@@ -2,28 +2,39 @@
 
 import { useState } from 'react';
 import { useGame } from '@/state/store';
+import { resultText, useT } from './i18n';
 import { Modal } from './Modal';
 
 export function GameOverModal() {
-  const result = useGame((s) => s.result);
-  const newGame = useGame((s) => s.newGame);
-  // Closing only hides the dialog so the final position can be studied. The key on the inner
-  // component resets `closed` for the next game.
-  return result ? <Dialog key={result} result={result} newGame={newGame} /> : null;
+  const over = useGame((s) => s.result !== null);
+  // Unmounted whenever there is no result, so `closed` starts fresh each time a game ends,
+  // including a second ending after an undo.
+  return over ? <Dialog /> : null;
 }
 
-function Dialog({ result, newGame }: { result: string; newGame: () => void }) {
+function Dialog() {
+  const t = useT();
+  const result = useGame((s) => s.result);
+  const newGame = useGame((s) => s.newGame);
+  // Closing only hides the dialog so the final position can be studied.
   const [closed, setClosed] = useState(false);
-  if (closed) return null;
+  if (closed || !result) return null;
   return (
-    <Modal label="Game over" onCancel={() => setClosed(true)}>
-      <h2 className="mb-4 text-lg font-semibold">{result}</h2>
-      <div className="flex gap-2">
-        <button autoFocus onClick={newGame} className="rounded-lg bg-amber-600 px-4 py-2 font-medium hover:bg-amber-500">
-          New game
+    <Modal label={t.gameOver} onCancel={() => setClosed(true)}>
+      <h2 className="mb-4 text-lg font-semibold">{resultText(t, result)}</h2>
+      <div className="flex flex-wrap gap-2">
+        <button
+          autoFocus
+          onClick={newGame}
+          className="min-h-11 rounded-lg bg-amber-600 px-4 py-2 font-medium hover:bg-amber-500"
+        >
+          {t.newGame}
         </button>
-        <button onClick={() => setClosed(true)} className="rounded-lg px-4 py-2 text-stone-300 hover:bg-stone-800">
-          View board
+        <button
+          onClick={() => setClosed(true)}
+          className="min-h-11 rounded-lg px-4 py-2 text-stone-300 hover:bg-stone-800"
+        >
+          {t.viewBoard}
         </button>
       </div>
     </Modal>

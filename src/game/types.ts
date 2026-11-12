@@ -16,3 +16,8 @@ export type Step =
   | { kind: 'hop'; piece: PieceId; to: Square }
   | { kind: 'combat'; attacker: PieceId; defender: PieceId }
   | { kind: 'promote'; piece: PieceId; to: PromotionPiece };
+
+/** How a game ended. The interface turns it into words in the player's language. */
+export type Result =
+  | { reason: 'checkmate'; winner: Color }
+  | { reason: 'stalemate' | 'insufficient' | 'threefold' | 'fifty' };
