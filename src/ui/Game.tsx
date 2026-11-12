@@ -52,7 +52,7 @@ export function Game() {
 
   return (
     <main className="relative h-dvh bg-stone-950">
-      <div inert={screen === 'menu'} className="flex h-full flex-col md:flex-row">
+      <div inert={screen === 'menu'} className="flex h-full flex-col landscape:flex-row">
         <div className="relative min-h-0 flex-1">
           <Scene />
           <Cinematic />
