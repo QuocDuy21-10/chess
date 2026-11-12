@@ -1,6 +1,6 @@
 import { Chess, type Color, type Move, type Square } from 'chess.js';
 import { create } from 'zustand';
-import { duck, fadeMusic, play, setMuted } from '@/audio/audio';
+import { duck, fadeMusic, play } from '@/audio/audio';
 import { planMove } from '@/game/planMove';
 import { matchesBoard, piecesFromBoard } from '@/game/position';
 import { squareToWorld } from '@/game/squares';
@@ -25,8 +25,6 @@ interface GameState {
   result: string | null;
   cinematic: boolean; // letterbox bars are showing
   gameId: number; // changes on every new game
-  muted: boolean;
-  setMuted(muted: boolean): void;
   select(square: Square | null): void;
   submitMove(from: Square, to: Square, promotion?: PromotionPiece): Promise<void>;
   submitText(text: string): boolean;
@@ -64,17 +62,6 @@ const fresh = () => ({
 export const useGame = create<GameState>((set, get) => ({
   ...fresh(),
   gameId: 0,
-  muted: false,
-
-  setMuted(muted) {
-    setMuted(muted);
-    try {
-      localStorage.setItem('chess.muted', muted ? '1' : '0');
-    } catch {
-      // storage is blocked: the choice lasts for this visit only
-    }
-    set({ muted });
-  },
 
   select(square) {
     if (get().phase !== 'idle') return;

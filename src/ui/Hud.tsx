@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
 import { TEAM_NAME } from '@/scene/theme';
+import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
 
 export function Hud() {
@@ -13,18 +14,9 @@ export function Hud() {
   const result = useGame((s) => s.result);
   const submitText = useGame((s) => s.submitText);
   const newGame = useGame((s) => s.newGame);
-  const muted = useGame((s) => s.muted);
-  const setMuted = useGame((s) => s.setMuted);
+  const muted = useSettings((s) => s.muted);
+  const update = useSettings((s) => s.update);
   const [text, setText] = useState('');
-
-  // Read after mount, not at store creation, so the server and first client render agree.
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('chess.muted') === '1') setMuted(true);
-    } catch {
-      // storage is blocked: start with sound on
-    }
-  }, [setMuted]);
   const [error, setError] = useState('');
 
   function onSubmit(event: FormEvent) {
@@ -48,7 +40,7 @@ export function Hud() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Chess</h1>
         <button
-          onClick={() => setMuted(!muted)}
+          onClick={() => update({ muted: !muted })}
           aria-pressed={!muted}
           className="rounded-lg border border-stone-600 px-3 py-1 text-sm hover:bg-stone-800"
         >

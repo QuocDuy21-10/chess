@@ -1,6 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useEffect } from 'react';
+import { useSettings } from '@/state/settings';
 import { Cinematic } from './Cinematic';
 import { GameOverModal } from './GameOverModal';
 import { Hud } from './Hud';
@@ -13,6 +15,9 @@ const Scene = dynamic(() => import('@/scene/Scene'), {
 });
 
 export function Game() {
+  // After mount, not at store creation, so the server and first client render agree.
+  useEffect(() => void useSettings.persist.rehydrate(), []);
+
   return (
     <main className="flex h-dvh flex-col bg-stone-950 md:flex-row">
       <div className="relative min-h-0 flex-1">

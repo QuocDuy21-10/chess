@@ -18,6 +18,7 @@ export type SoundName = keyof typeof FILES;
 
 const MUSIC_VOLUME = 0.35;
 const DUCKED = 0.35; // fraction of the music level left during a fight
+const PAUSED = 0.35; // and while the pause menu is open
 
 let ctx: AudioContext | null = null;
 let master: GainNode;
@@ -26,7 +27,12 @@ let music: GainNode;
 const buffers = new Map<string, AudioBuffer>();
 let muted = false;
 let ducked = false;
+let paused = false;
 let level = 1;
+const volume = { music: 1, sfx: 1 }; // the player's settings, 0 to 1
+
+const musicGain = () =>
+  MUSIC_VOLUME * level * (ducked ? DUCKED : 1) * (paused ? PAUSED : 1) * volume.music;
 
 /** Plays a sound `delayMs` from now, on the audio clock. One of several files is picked at random. */
 export function play(name: SoundName, delayMs = 0): void {
@@ -48,13 +54,26 @@ export function setMuted(value: boolean): void {
 function rampMusic(ms: number) {
   if (!ctx) return;
   // setTargetAtTime approaches its target exponentially; a third of `ms` as the time constant gets ~95% there
-  music.gain.setTargetAtTime(MUSIC_VOLUME * level * (ducked ? DUCKED : 1), ctx.currentTime, ms / 3000);
+  music.gain.setTargetAtTime(musicGain(), ctx.currentTime, ms / 3000);
 }
 
 /** Lowers the music under a fight, and brings it back. */
 export function duck(on: boolean): void {
   ducked = on;
   rampMusic(300);
+}
+
+/** Lowers the music while the pause menu is open. Separate from `duck`, so a fight ending behind the menu does not raise it. */
+export function setPaused(on: boolean): void {
+  paused = on;
+  rampMusic(300);
+}
+
+/** Sets the player's volume for one channel, 0 to 1. Remembered until the audio is unlocked. */
+export function setVolume(channel: 'music' | 'sfx', value: number): void {
+  volume[channel] = value;
+  if (channel === 'music') rampMusic(50);
+  else if (ctx) sfx.gain.value = value;
 }
 
 /** Fades the music to `to` (0 to 1) of its normal level. */
@@ -80,7 +99,8 @@ function unlock() {
   sfx = ctx.createGain();
   music = ctx.createGain();
   master.gain.value = muted ? 0 : 1;
-  music.gain.value = MUSIC_VOLUME * level * (ducked ? DUCKED : 1);
+  sfx.gain.value = volume.sfx;
+  music.gain.value = musicGain();
   sfx.connect(master);
   music.connect(master);
   master.connect(ctx.destination);
