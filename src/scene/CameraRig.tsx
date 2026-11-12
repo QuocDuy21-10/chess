@@ -2,6 +2,7 @@ import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useRef, type ComponentRef } from 'react';
 import { Vector3 } from 'three';
+import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
 import { cameraRig, setCameraRig } from './cameraHandle';
 import { CAMERA } from './theme';
@@ -15,9 +16,13 @@ export function CameraRig() {
   const camera = useRef<ComponentRef<typeof PerspectiveCamera>>(null!);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null!);
   const gameId = useGame((s) => s.gameId);
+  // The camera sits behind the army the player chose: on +z for the first army, on -z for the second.
+  const sign = useSettings((s) => (s.side === 'w' ? 1 : -1));
+  const settled = useRef(false); // false until the first placement
 
   useEffect(() => {
-    const home = new Vector3(...CAMERA.position);
+    const [x, y, z] = CAMERA.position;
+    const home = new Vector3(x, y, z * sign);
     const centre = new Vector3();
     // While gliding the controls are disabled, so their distance and angle limits do not clamp the path.
     const glide = (position: Vector3, target: Vector3, ms: number) => {
@@ -53,8 +58,15 @@ export function CameraRig() {
         unlock();
       },
     });
+    // Stand behind this side's army. A straight glide to the far side would pass directly over the
+    // board, where the view flips, so a change of side jumps across and descends as a new game does.
+    camera.current.position.copy(home);
+    controls.current.target.copy(centre);
+    camera.current.lookAt(centre);
+    if (settled.current) void cameraRig.intro();
+    settled.current = true;
     return () => setCameraRig(null);
-  }, []);
+  }, [sign]);
 
   // Runs after the effect above, so the handle is already in place on first mount.
   useEffect(() => {
@@ -71,8 +83,9 @@ export function CameraRig() {
         maxDistance={14}
         minPolarAngle={Math.PI / 6}
         maxPolarAngle={Math.PI / 2.6}
-        minAzimuthAngle={-Math.PI / 6}
-        maxAzimuthAngle={Math.PI / 6}
+        // Behind the second army the range is centred on π. OrbitControls accepts a range that crosses π.
+        minAzimuthAngle={(sign === 1 ? 0 : Math.PI) - Math.PI / 6}
+        maxAzimuthAngle={(sign === 1 ? 0 : Math.PI) + Math.PI / 6}
       />
     </>
   );

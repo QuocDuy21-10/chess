@@ -2,6 +2,7 @@
 
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useState } from 'react';
+import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
 import { useT } from '@/ui/i18n';
 import { Board } from './Board';
@@ -27,6 +28,7 @@ function hasWebGL() {
 export default function Scene() {
   const pieces = useGame((s) => s.pieces);
   const select = useGame((s) => s.select);
+  const lightZ = useSettings((s) => (s.side === 'w' ? 6 : -6)); // the key light stays on the camera's side
   const [webgl] = useState(hasWebGL);
   const t = useT();
 
@@ -42,7 +44,7 @@ export default function Scene() {
     <Canvas shadows onPointerMissed={() => select(null)}>
       <color attach="background" args={[PALETTE.background]} />
       <ambientLight intensity={0.7} />
-      <directionalLight position={[5, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
+      <directionalLight position={[5, 10, lightZ]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
       <TweenTicker />
       <CameraRig />
       <Board />
