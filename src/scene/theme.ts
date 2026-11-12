@@ -32,7 +32,19 @@ export const TIMING = {
   turnMs: 150,
 } as const;
 
+export const walkMs = (distance: number) =>
+  Math.max(TIMING.walkMinMs, (distance / TIMING.walkSquaresPerSec) * 1000);
+
 export const STAND_OFF = 0.7; // squares between attacker and defender during a fight
 
 // fitAspect: the narrowest width/height at which `fov` still shows the whole board
-export const CAMERA = { position: [0, 10, 9] as [number, number, number], fov: 36, fitAspect: 1.33 };
+export const CAMERA = {
+  position: [0, 10, 9] as [number, number, number],
+  fov: 36,
+  fitAspect: 1.33,
+  focusMs: 400,
+  focusAmount: 0.45, // how far the camera travels from home toward a fight
+  introMs: 1200,
+  introScale: 1.6, // the opening descent starts this many times farther out than home
+  checkmateMs: 1200,
+};

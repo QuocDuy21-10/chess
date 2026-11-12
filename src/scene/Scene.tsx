@@ -1,25 +1,17 @@
 'use client';
 
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { useState } from 'react';
 import { useGame } from '@/state/store';
 import { Board } from './Board';
+import { CameraRig } from './CameraRig';
 import { PieceActor } from './Piece';
-import { CAMERA, PALETTE } from './theme';
+import { PALETTE } from './theme';
 import { tickTweens } from './tween';
 
 function TweenTicker() {
   useFrame((_, delta) => tickTweens(delta * 1000));
   return null;
-}
-
-/** The camera. Widens the field of view on narrow canvases so the whole board stays in frame. */
-function FitCamera() {
-  const aspect = useThree((s) => s.size.width / s.size.height);
-  const half = Math.tan((CAMERA.fov * Math.PI) / 360);
-  const fov = (Math.atan(half * Math.max(1, CAMERA.fitAspect / aspect)) * 360) / Math.PI;
-  return <PerspectiveCamera makeDefault position={CAMERA.position} fov={fov} />;
 }
 
 function hasWebGL() {
@@ -51,20 +43,11 @@ export default function Scene() {
       <ambientLight intensity={0.7} />
       <directionalLight position={[5, 10, 6]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
       <TweenTicker />
-      <FitCamera />
+      <CameraRig />
       <Board />
       {pieces.map((piece) => (
         <PieceActor key={piece.id} piece={piece} />
       ))}
-      <OrbitControls
-        enablePan={false}
-        minDistance={5}
-        maxDistance={13}
-        minPolarAngle={Math.PI / 6}
-        maxPolarAngle={Math.PI / 2.6}
-        minAzimuthAngle={-Math.PI / 6}
-        maxAzimuthAngle={Math.PI / 6}
-      />
     </Canvas>
   );
 }

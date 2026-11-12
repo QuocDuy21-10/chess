@@ -12,7 +12,7 @@ import { Pawn } from './pieces/Pawn';
 import { Queen } from './pieces/Queen';
 import type { Rig } from './pieces/rig';
 import { Rook } from './pieces/Rook';
-import { TEAM, TIMING } from './theme';
+import { TEAM, TIMING, walkMs } from './theme';
 import { tween } from './tween';
 
 const MODELS = { p: Pawn, n: Knight, b: Bishop, r: Rook, q: Queen, k: King };
@@ -44,8 +44,7 @@ export function PieceActor({ piece }: { piece: Piece }) {
         const distance = from.distanceTo(point);
         if (distance < 1e-3) return;
         turnTo(angleTo(point));
-        const ms =
-          mode === 'hop' ? TIMING.hopMs : Math.max(TIMING.walkMinMs, (distance / TIMING.walkSquaresPerSec) * 1000);
+        const ms = mode === 'hop' ? TIMING.hopMs : walkMs(distance);
         await tween(ms, (t) => {
           if (!group.current) return;
           group.current.position.lerpVectors(from, point, t);

@@ -1,11 +1,14 @@
 import { Chess, type Color, type Move, type Square } from 'chess.js';
 import { create } from 'zustand';
+import { duck, fadeMusic, play, setMuted } from '@/audio/audio';
 import { planMove } from '@/game/planMove';
 import { matchesBoard, piecesFromBoard } from '@/game/position';
+import { squareToWorld } from '@/game/squares';
 import type { Piece, PromotionPiece } from '@/game/types';
 import { actors } from '@/scene/actors';
+import { cameraRig } from '@/scene/cameraHandle';
 import { runSteps } from '@/scene/sequencer';
-import { TEAM_NAME } from '@/scene/theme';
+import { CAMERA, TEAM_NAME } from '@/scene/theme';
 
 type Phase = 'idle' | 'animating' | 'promoting' | 'gameOver';
 
@@ -20,6 +23,10 @@ interface GameState {
   turn: Color;
   inCheck: boolean;
   result: string | null;
+  cinematic: boolean; // letterbox bars are showing
+  gameId: number; // changes on every new game
+  muted: boolean;
+  setMuted(muted: boolean): void;
   select(square: Square | null): void;
   submitMove(from: Square, to: Square, promotion?: PromotionPiece): Promise<void>;
   submitText(text: string): boolean;
@@ -51,10 +58,23 @@ const fresh = () => ({
   turn: 'w' as Color,
   inCheck: false,
   result: null,
+  cinematic: false,
 });
 
 export const useGame = create<GameState>((set, get) => ({
   ...fresh(),
+  gameId: 0,
+  muted: false,
+
+  setMuted(muted) {
+    setMuted(muted);
+    try {
+      localStorage.setItem('chess.muted', muted ? '1' : '0');
+    } catch {
+      // storage is blocked: the choice lasts for this visit only
+    }
+    set({ muted });
+  },
 
   select(square) {
     if (get().phase !== 'idle') return;
@@ -69,6 +89,7 @@ export const useGame = create<GameState>((set, get) => ({
     }
     // empty squares and the opponent's pieces have no legal moves, so they clear the selection
     const moves = square ? chess.moves({ square, verbose: true }) : [];
+    if (moves.length) play('select');
     set(moves.length ? { selected: square, targets: moves } : { selected: null, targets: [] });
   },
 
@@ -83,12 +104,44 @@ export const useGame = create<GameState>((set, get) => ({
     }
     const steps = planMove(move, get().pieces);
     set({ phase: 'animating', selected: null, targets: [], pendingPromotion: null });
-    await runSteps(steps, { actors, getPieces: () => get().pieces, setPieces: (pieces) => set({ pieces }) });
+    await runSteps(steps, {
+      actors,
+      getPieces: () => get().pieces,
+      setPieces: (pieces) => set({ pieces }),
+      sound: play,
+      camera: {
+        focus(a, b) {
+          set({ cinematic: true });
+          duck(true);
+          return cameraRig.focus(a, b);
+        },
+        reset() {
+          set({ cinematic: false });
+          duck(false);
+          return cameraRig.reset();
+        },
+      },
+    });
     if (!matchesBoard(get().pieces, chess)) {
       console.error('View out of sync with chess.js after', move.san, '— resyncing');
       set({ pieces: piecesFromBoard(chess) });
     }
     const result = gameResult();
+    if (result) {
+      play('gameover');
+      fadeMusic(0.2, 1500);
+      const king = get().pieces.find((p) => p.type === 'k' && p.color === chess.turn());
+      if (chess.isCheckmate() && king) {
+        // hold on the mated king before the result is announced
+        const at = squareToWorld(king.square);
+        set({ cinematic: true });
+        await cameraRig.focus(at, at, CAMERA.checkmateMs);
+        set({ cinematic: false });
+        void cameraRig.reset();
+      }
+    } else if (chess.inCheck()) {
+      play('check');
+    }
     set({
       phase: result ? 'gameOver' : 'idle',
       history: chess.history(),
@@ -123,6 +176,7 @@ export const useGame = create<GameState>((set, get) => ({
   newGame() {
     if (get().phase === 'animating') return;
     chess.reset();
-    set(fresh());
+    fadeMusic(1, 800);
+    set({ ...fresh(), gameId: get().gameId + 1 });
   },
 }));

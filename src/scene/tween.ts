@@ -7,7 +7,7 @@ interface Tween {
 
 const active = new Set<Tween>();
 
-const reducedMotion = () =>
+export const reducedMotion = () =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Calls `update(t)` with t from 0 to 1 over `ms`, driven by tickTweens. Resolves after update(1). */

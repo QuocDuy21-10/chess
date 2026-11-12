@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Cinematic } from './Cinematic';
 import { GameOverModal } from './GameOverModal';
 import { Hud } from './Hud';
 import { PromotionChooser } from './PromotionChooser';
@@ -14,8 +15,9 @@ const Scene = dynamic(() => import('@/scene/Scene'), {
 export function Game() {
   return (
     <main className="flex h-dvh flex-col bg-stone-950 md:flex-row">
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
         <Scene />
+        <Cinematic />
       </div>
       <Hud />
       <PromotionChooser />

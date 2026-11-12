@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { play } from '@/audio/audio';
 import { TEAM_NAME } from '@/scene/theme';
 import { useGame } from '@/state/store';
 
@@ -12,7 +13,18 @@ export function Hud() {
   const result = useGame((s) => s.result);
   const submitText = useGame((s) => s.submitText);
   const newGame = useGame((s) => s.newGame);
+  const muted = useGame((s) => s.muted);
+  const setMuted = useGame((s) => s.setMuted);
   const [text, setText] = useState('');
+
+  // Read after mount, not at store creation, so the server and first client render agree.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('chess.muted') === '1') setMuted(true);
+    } catch {
+      // storage is blocked: start with sound on
+    }
+  }, [setMuted]);
   const [error, setError] = useState('');
 
   function onSubmit(event: FormEvent) {
@@ -22,6 +34,7 @@ export function Hud() {
       setText('');
       setError('');
     } else {
+      play('error');
       setError(`"${text}" is not a legal move here. Try a move like Nf3 or g1f3.`);
     }
   }
@@ -32,7 +45,16 @@ export function Hud() {
 
   return (
     <aside className="flex w-full flex-col gap-4 bg-stone-900 p-4 text-stone-100 md:w-72">
-      <h1 className="text-xl font-bold">Chess</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Chess</h1>
+        <button
+          onClick={() => setMuted(!muted)}
+          aria-pressed={!muted}
+          className="rounded-lg border border-stone-600 px-3 py-1 text-sm hover:bg-stone-800"
+        >
+          {muted ? 'Sound off' : 'Sound on'}
+        </button>
+      </div>
 
       <p className="text-lg">
         {result ?? `${TEAM_NAME[turn]} to move`}

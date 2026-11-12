@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+.fade-from-black {
+  animation: fade-from-black 800ms ease-out forwards;
+}
+
+@keyframes fade-from-black {
+  to {
+    opacity: 0;
+  }
+}
