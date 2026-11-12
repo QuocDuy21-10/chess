@@ -2,6 +2,13 @@
 
 import type { ReactNode } from 'react';
 
+// Defined once, so React calls it only when the dialog mounts and its cleanup only when it unmounts.
+// Closing the dialog, rather than just removing it, hands keyboard focus back to where it was.
+function open(dialog: HTMLDialogElement) {
+  dialog.showModal();
+  return () => dialog.close();
+}
+
 /**
  * A native modal <dialog>: the browser traps focus and reports Escape through onCancel.
  * `sheet` anchors it to the bottom edge as a drawer, and lets a tap on the backdrop close it.
@@ -9,9 +16,7 @@ import type { ReactNode } from 'react';
 export function Modal(props: { label: string; onCancel: () => void; sheet?: boolean; children: ReactNode }) {
   return (
     <dialog
-      ref={(dialog) => {
-        if (dialog && !dialog.open) dialog.showModal();
-      }}
+      ref={open}
       aria-label={props.label}
       onCancel={(event) => {
         event.preventDefault();
