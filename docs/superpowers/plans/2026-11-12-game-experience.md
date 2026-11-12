@@ -39,6 +39,10 @@ Every task below was written into a scratch clone of this branch, one commit per
 - Not checked: nothing was rendered in a browser. The layouts, the Tailwind variants (`portrait:`, `landscape:`, `aria-pressed:`, `aria-[current=step]:`), the `inert` attribute, the drawer, the camera behind the Teal army and all sound levels are untested. Each task has a browser step and Task 7 exists to catch the rest.
 - Not checked: `npm run build`. It could not run in the scratch clone because Turbopack refuses a symlinked `node_modules`. Task 7 runs it.
 
+One fact learned in the browser while executing Task 3, already folded into the code below:
+
+- Current Chrome returns a Promise from `scrollIntoView`. An effect written `useEffect(() => el.scrollIntoView(…))` then returns that Promise and React throws "destroy is not a function". The move list's effect uses `void` for that reason; do not remove it.
+
 One fact read from the installed code and relied on:
 
 - `OrbitControls` in `three@0.187.0` accepts an azimuth range that crosses π (`node_modules/three/examples/jsm/controls/OrbitControls.js`, "restrict theta to be between desired limits"). Task 4 uses `5π/6 … 7π/6` for the Teal side.
@@ -1255,7 +1259,7 @@ index 6e2d1d9..831a337 100644
  
 +  // Keep the latest move in view.
 +  const latest = useRef<HTMLLIElement>(null);
-+  useEffect(() => latest.current?.scrollIntoView({ block: 'nearest' }), [history.length]);
++  useEffect(() => void latest.current?.scrollIntoView({ block: 'nearest' }), [history.length]);
 +
    function onSubmit(event: FormEvent) {
      event.preventDefault();
@@ -2090,7 +2094,7 @@ function MoveList() {
 
   // Keep the latest move in view.
   const latest = useRef<HTMLLIElement>(null);
-  useEffect(() => latest.current?.scrollIntoView({ block: 'nearest' }), [history.length]);
+  useEffect(() => void latest.current?.scrollIntoView({ block: 'nearest' }), [history.length]);
 
   return (
     <ol aria-label={t.moves} className="min-h-0 flex-1 overflow-y-auto font-mono text-sm">
