@@ -57,6 +57,9 @@ One fact read from the installed code and relied on:
 - **Typed-move placeholder** changes from `Nf3 or g1f3` to `Nf3 / g1f3`, so it needs no translation.
 - **Safe area:** the side column is also padded by `env(safe-area-inset-right)` in landscape.
 - **Portrait bar** does not show the game title; the main menu does.
+- **Focus after a dialog:** found during the keyboard pass. `Modal` now closes the dialog when it unmounts, so the browser returns focus to the control that opened it. The spec does not mention this.
+- **Scene container:** has `min-w-0`. Without it the canvas keeps its old pixel width when the window narrows and the page scrolls sideways. Found by resizing from 1024 to 844 wide without a reload.
+- **Escape:** the pause handler calls `preventDefault()`, or the key press that opens the pause menu also closes it.
 
 ## File Structure
 
@@ -1774,7 +1777,7 @@ export function Game() {
   return (
     <main className="relative h-dvh bg-stone-950">
       <div inert={screen === 'menu'} className="flex h-full flex-col md:flex-row">
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 min-w-0 flex-1">
           <Scene />
           <Cinematic />
         </div>
@@ -1908,6 +1911,13 @@ Replace `src/ui/Modal.tsx` with:
 
 import type { ReactNode } from 'react';
 
+// Defined once, so React calls it only when the dialog mounts and its cleanup only when it unmounts.
+// Closing the dialog, rather than just removing it, hands keyboard focus back to where it was.
+function open(dialog: HTMLDialogElement) {
+  dialog.showModal();
+  return () => dialog.close();
+}
+
 /**
  * A native modal <dialog>: the browser traps focus and reports Escape through onCancel.
  * `sheet` anchors it to the bottom edge as a drawer, and lets a tap on the backdrop close it.
@@ -1915,9 +1925,7 @@ import type { ReactNode } from 'react';
 export function Modal(props: { label: string; onCancel: () => void; sheet?: boolean; children: ReactNode }) {
   return (
     <dialog
-      ref={(dialog) => {
-        if (dialog && !dialog.open) dialog.showModal();
-      }}
+      ref={open}
       aria-label={props.label}
       onCancel={(event) => {
         event.preventDefault();
@@ -2141,7 +2149,7 @@ index 5c33983..d83e870 100644
      <main className="relative h-dvh bg-stone-950">
 -      <div inert={screen === 'menu'} className="flex h-full flex-col md:flex-row">
 +      <div inert={screen === 'menu'} className="flex h-full flex-col landscape:flex-row">
-         <div className="relative min-h-0 flex-1">
+         <div className="relative min-h-0 min-w-0 flex-1">
            <Scene />
            <Cinematic />
 ```
