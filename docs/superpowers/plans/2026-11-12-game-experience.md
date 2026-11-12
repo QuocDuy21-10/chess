@@ -1763,7 +1763,9 @@ export function Game() {
   useEffect(() => {
     if (screen !== 'playing') return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) setScreen('paused');
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+      event.preventDefault(); // or this same key press would close the pause menu it has just opened
+      setScreen('paused');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
