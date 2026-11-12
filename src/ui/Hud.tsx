@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
 import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
@@ -15,10 +15,15 @@ export function Hud() {
   const result = useGame((s) => s.result);
   const submitText = useGame((s) => s.submitText);
   const newGame = useGame((s) => s.newGame);
+  const undo = useGame((s) => s.undo);
   const muted = useSettings((s) => s.muted);
   const update = useSettings((s) => s.update);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
+
+  // Keep the latest move in view.
+  const latest = useRef<HTMLLIElement>(null);
+  useEffect(() => void latest.current?.scrollIntoView({ block: 'nearest' }), [history.length]);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -91,13 +96,35 @@ export function Hud() {
 
       <ol aria-label={t.moves} className="min-h-24 flex-1 overflow-y-auto font-mono text-sm">
         {rows.map(([first, second], i) => (
-          <li key={i} className="grid grid-cols-[2rem_1fr_1fr] gap-2 py-0.5">
+          <li
+            key={i}
+            ref={i === rows.length - 1 ? latest : undefined}
+            className="grid grid-cols-[2rem_1fr_1fr] gap-2 py-0.5"
+          >
             <span className="text-stone-500">{i + 1}.</span>
-            <span>{first}</span>
-            <span>{second}</span>
+            {[first, second].map(
+              (san, j) =>
+                san && (
+                  <span
+                    key={j}
+                    aria-current={i * 2 + j === history.length - 1 ? 'step' : undefined}
+                    className="rounded px-1 aria-[current=step]:bg-amber-600/40"
+                  >
+                    {san}
+                  </span>
+                ),
+            )}
           </li>
         ))}
       </ol>
+
+      <button
+        onClick={undo}
+        disabled={(phase !== 'idle' && phase !== 'gameOver') || history.length === 0}
+        className="rounded-lg border border-stone-600 px-3 py-2 hover:bg-stone-800 disabled:opacity-50"
+      >
+        {t.undo}
+      </button>
 
       <button
         onClick={newGame}

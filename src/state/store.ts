@@ -19,6 +19,7 @@ interface GameState {
   phase: Phase;
   pendingPromotion: { from: Square; to: Square } | null;
   history: string[]; // SAN
+  snapshots: Piece[][]; // `pieces` as they stood before each move; same length as `history`
   lastMove: { from: Square; to: Square } | null;
   turn: Color;
   inCheck: boolean;
@@ -30,6 +31,7 @@ interface GameState {
   submitText(text: string): boolean;
   choosePromotion(piece: PromotionPiece): void;
   cancelPromotion(): void;
+  undo(): void;
   newGame(): void;
 }
 
@@ -52,6 +54,7 @@ const fresh = () => ({
   phase: 'idle' as Phase,
   pendingPromotion: null,
   history: [],
+  snapshots: [] as Piece[][],
   lastMove: null,
   turn: 'w' as Color,
   inCheck: false,
@@ -90,7 +93,13 @@ export const useGame = create<GameState>((set, get) => ({
       return; // illegal move: ignore
     }
     const steps = planMove(move, get().pieces);
-    set({ phase: 'animating', selected: null, targets: [], pendingPromotion: null });
+    set({
+      phase: 'animating',
+      selected: null,
+      targets: [],
+      pendingPromotion: null,
+      snapshots: [...get().snapshots, get().pieces],
+    });
     await runSteps(steps, {
       actors,
       getPieces: () => get().pieces,
@@ -158,6 +167,28 @@ export const useGame = create<GameState>((set, get) => ({
 
   cancelPromotion() {
     if (get().phase === 'promoting') set({ phase: 'idle', pendingPromotion: null });
+  },
+
+  /** Takes back one move by one side. The board jumps to the earlier position; nothing is animated. */
+  undo() {
+    const { phase, snapshots } = get();
+    if ((phase !== 'idle' && phase !== 'gameOver') || !snapshots.length) return;
+    chess.undo();
+    if (phase === 'gameOver') fadeMusic(1, 800);
+    play('select');
+    const last = chess.history({ verbose: true }).at(-1);
+    set({
+      pieces: snapshots.at(-1)!, // the snapshot keeps every piece id, so no actor is rebuilt needlessly
+      snapshots: snapshots.slice(0, -1),
+      selected: null,
+      targets: [],
+      phase: 'idle',
+      history: chess.history(),
+      lastMove: last ? { from: last.from, to: last.to } : null,
+      turn: chess.turn(),
+      inCheck: chess.inCheck(),
+      result: null,
+    });
   },
 
   newGame() {

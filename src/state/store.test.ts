@@ -116,3 +116,65 @@ test('the view never drifts from chess.js through castles, en passant and promot
   expect(game().pieces).toHaveLength(27);
   error.mockRestore();
 });
+
+// Undo must leave exactly the pieces that stood before the move, ids included, and chess.js must agree:
+// the same move is legal again, and replaying it never triggers the store's resync.
+test.each([
+  ['a quiet move', ['e4']],
+  ['a capture', ['e4', 'd5', 'exd5']],
+  ['a castle', ['e4', 'e5', 'Nf3', 'Nc6', 'Be2', 'Nf6', 'O-O']],
+  ['en passant', ['e4', 'a6', 'e5', 'd5', 'exd6']],
+  ['a promotion', ['a4', 'b5', 'axb5', 'a6', 'bxa6', 'Bb7', 'axb7', 'Nc6', 'bxa8=Q']],
+])('undo takes back %s', async (_name, moves) => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const last = moves.at(-1)!;
+  await play(...moves.slice(0, -1));
+  const before = { pieces: game().pieces, history: game().history, turn: game().turn, lastMove: game().lastMove };
+  await play(last);
+
+  game().undo();
+  expect(game()).toMatchObject({ ...before, phase: 'idle', selected: null, result: null });
+  expect(game().snapshots).toHaveLength(moves.length - 1);
+
+  await play(last);
+  expect(game().history).toEqual(moves);
+  expect(error).not.toHaveBeenCalled();
+  error.mockRestore();
+});
+
+test('undo reopens a finished game', async () => {
+  await play('f3', 'e5', 'g4', 'Qh4#');
+  game().undo();
+  expect(game()).toMatchObject({ phase: 'idle', result: null, turn: 'b', inCheck: false });
+  expect(game().history).toEqual(['f3', 'e5', 'g4']);
+  await play('Qh4#');
+  expect(game().phase).toBe('gameOver');
+});
+
+test('undo walks back to the start, then does nothing', async () => {
+  await play('e4', 'e5');
+  game().undo();
+  expect(game().lastMove).toEqual({ from: 'e2', to: 'e4' });
+  game().undo();
+  expect(game()).toMatchObject({ history: [], lastMove: null, turn: 'w' });
+  expect(game().pieces).toHaveLength(32);
+  game().undo();
+  expect(game()).toMatchObject({ history: [], phase: 'idle' });
+});
+
+test('undo is ignored while a move is animating or a promotion is being chosen', async () => {
+  game().select('e2');
+  game().select('e4');
+  expect(game().phase).toBe('animating');
+  game().undo();
+  await waitForIdle();
+  expect(game().history).toEqual(['e4']);
+
+  game().newGame();
+  await play('a4', 'b5', 'axb5', 'a6', 'bxa6', 'Bb7', 'axb7', 'Nc6');
+  game().select('b7');
+  game().select('a8');
+  game().undo();
+  expect(game().phase).toBe('promoting');
+  expect(game().history).toHaveLength(8);
+});
