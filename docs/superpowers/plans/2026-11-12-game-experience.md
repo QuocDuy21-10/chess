@@ -1971,7 +1971,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
   return (
     <aside className="flex shrink-0 gap-2 bg-stone-900 text-stone-100 portrait:items-center portrait:px-3 portrait:pt-2 portrait:pb-[max(0.5rem,env(safe-area-inset-bottom))] landscape:min-h-0 landscape:w-60 landscape:flex-col landscape:gap-4 landscape:p-4 landscape:pr-[max(1rem,env(safe-area-inset-right))] landscape:lg:w-72">
       <div className="flex items-center justify-between gap-2 portrait:hidden">
-        <h1 className="text-xl font-bold">{t.title}</h1>
+        <h1 className="text-lg font-bold whitespace-nowrap lg:text-xl">{t.title}</h1>
         {pause}
       </div>
       <Status />
