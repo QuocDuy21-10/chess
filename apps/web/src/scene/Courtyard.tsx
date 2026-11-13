@@ -1,14 +1,17 @@
 import { RoundedBox } from '@react-three/drei';
 import { useLayoutEffect, useRef } from 'react';
 import { Color, Object3D, type InstancedMesh } from 'three';
+import { Banner } from './Banner';
+import { Brazier } from './Brazier';
 import { flagstones, noRaycast, ring, type Placement } from './courtyardLayout';
-import { COURTYARD, PALETTE } from './theme';
+import { COURTYARD, PALETTE, TEAM } from './theme';
 
 const { floorY, wallRadius: R, wallHeight: H, merlonHeight: M } = COURTYARD;
 const SLABS = flagstones();
 const WALL = ring(R, 32);
 const MERLONS = ring(R, 64);
 const TOWERS = ring(R, 4, Math.PI / 4);
+const BRAZIERS: [number, number][] = [[5, 5], [-5, 5], [5, -5], [-5, -5]]; // the top step's corners
 const dummy = new Object3D();
 
 function Flagstones() {
@@ -94,6 +97,12 @@ export function Courtyard() {
           </mesh>
         </group>
       ))}
+
+      {BRAZIERS.map(([x, z]) => (
+        <Brazier key={`${x},${z}`} x={x} z={z} />
+      ))}
+      <Banner color={TEAM.w} side={1} />
+      <Banner color={TEAM.b} side={-1} />
     </group>
   );
 }
