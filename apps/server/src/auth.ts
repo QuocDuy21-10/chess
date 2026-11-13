@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { Router } from 'express';
 import { cookieOptions, OAUTH, readCookie, SID } from './cookies.ts';
 import type { Db } from './db.ts';
+import { log } from './log.ts';
 import { PROVIDER_NAMES, type Profile, type Provider, type ProviderName } from './providers.ts';
 import { accounts, users } from './schema.ts';
 import { SESSION_MS, type Sessions } from './sessions.ts';
@@ -103,7 +104,7 @@ export function authRoutes({ db, sessions, providers, webUrl, secure, onLogout }
     try {
       profile = await found.provider.identify(code, flow.verifier);
     } catch (error) {
-      console.error(`Sign-in with ${found.name} failed:`, error);
+      log.error('Sign-in failed', error, { provider: found.name }); // a wrong client secret breaks every sign-in
       return res.redirect(`${webUrl}/?login=failed`);
     }
     const userId = await findOrCreateUser(db, found.name, profile);

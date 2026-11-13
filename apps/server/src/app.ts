@@ -8,6 +8,7 @@ import type { Db } from './db.ts';
 import { attachGame, userRoom, type GameServer } from './game.ts';
 import { saveGame } from './games.ts';
 import { createHttpApp } from './http.ts';
+import { log } from './log.ts';
 import type { Provider, ProviderName } from './providers.ts';
 import { createSessions } from './sessions.ts';
 
@@ -50,14 +51,15 @@ export function createApp({
     timeControls,
     // Not awaited by the game: both players already have the result, whatever the database does.
     onGameOver(record) {
+      log.info('Game over', { roomId: record.roomId, ...record.result, moves: record.moves.length });
       const write = saveGame(db, record)
-        .catch((error) => console.error(`Could not save the game in room ${record.roomId}:`, error))
+        .catch((error) => log.error('Could not save a game', error, { roomId: record.roomId }))
         .finally(() => saving.delete(write));
       saving.add(write);
     },
   });
   const sweeper = setInterval(() => {
-    sessions.sweep().catch((error) => console.error('Session sweep failed:', error));
+    sessions.sweep().catch((error) => log.error('Session sweep failed', error));
   }, SESSION_SWEEP_MS);
 
   return {

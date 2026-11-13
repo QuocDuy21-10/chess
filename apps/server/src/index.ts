@@ -1,15 +1,16 @@
 import { createApp } from './app.ts';
 import { loadConfig, type Config } from './config.ts';
 import { connect, migrate } from './db.ts';
+import { log } from './log.ts';
 import { createProviders } from './providers.ts';
 
 // The only file with side effects on the process: environment, port, signals. See config.ts for the variables.
 
 const CLOSE_MS = 10_000; // how long closing may take before the process ends anyway
 
-/** Prints why the server cannot run and ends the process. */
-function fail(error: unknown): never {
-  console.error(error instanceof Error ? error.message : error);
+/** Logs why the server cannot run and ends the process. */
+function fail(error: unknown, msg = 'Cannot start'): never {
+  log.error(msg, error);
   process.exit(1);
 }
 
@@ -21,8 +22,8 @@ try {
 }
 
 const { pool, db } = connect(config.databaseUrl);
-// An unreachable database stops the server here; the host restarts it. ECONNREFUSED comes with an empty message.
-await migrate(pool).catch((error) => fail(`Cannot migrate the database: ${error.message || error.code}`));
+// An unreachable database stops the server here; the host restarts it. The logged error carries ECONNREFUSED's code.
+await migrate(pool).catch((error) => fail(error, 'Cannot migrate the database'));
 
 const app = createApp({
   db,
@@ -31,11 +32,12 @@ const app = createApp({
   webUrl: config.webUrl,
   secure: config.production,
 });
-const port = await app.listen(config.port).catch(fail);
-console.log(`Game server listening on port ${port}`);
+const port = await app.listen(config.port).catch((error) => fail(error));
+log.info('Listening', { port });
 
 /** Hosts send SIGTERM before they stop or replace the server: close every connection, then exit. */
 function shutdown() {
+  log.info('Shutting down');
   setTimeout(() => process.exit(1), CLOSE_MS).unref();
   void app
     .close()
