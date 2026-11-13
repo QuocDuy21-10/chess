@@ -114,15 +114,17 @@ after it started only silences it (the element stays), as today.
    value from `three`, `@react-three/fiber` or `@react-three/drei`), and amend this spec before going further.
 4. Measure again; record before and after in the commit message.
 
-A lint rule keeps it that way: ESLint `no-restricted-imports` in `apps/web/eslint.config.mjs` forbids value imports
-of `three`, `@react-three/fiber` and `@react-three/drei` outside `src/scene/` (type-only imports allowed, using
-`@typescript-eslint/no-restricted-imports` with `allowTypeImports: true`).
+A lint rule keeps it that way: `@typescript-eslint/no-restricted-imports` in `apps/web/eslint.config.mjs`, with
+`allowTypeImports: true`, forbids value imports of `three`, `three/*` and `@react-three/*` in every file of `src/`
+except the scene's components (`src/scene/**/*.tsx`). The scene's plain modules (`sequencer.ts`, `actors.ts`,
+`cameraHandle.ts`, `theme.ts`, `tween.ts`) are covered, since the store loads them with the page.
 
 ### Size budget (`apps/web/scripts/bundle-size.ts`, `apps/web/bundle-budget.json`)
 
 Run with Node after `next build`:
 
-- **first load**: the gzip size of every `/_next/static/…js` script referenced by `.next/server/app/index.html`;
+- **first load**: the gzip size of the chunks Next lists for `/` in `.next/diagnostics/route-bundle-stats.json`
+  (`firstLoadChunkPaths`, written by `next build` in 16.4);
 - **all JavaScript**: the gzip size of every file under `.next/static/chunks/` ending in `.js`.
 
 It prints both against the budget, and exits 1 when either is over. `bundle-budget.json`:
@@ -149,7 +151,8 @@ budget means editing this file in the same pull request, where review sees it.
 
 - A failed prefetch is ignored; the worker fetches the files itself at Start, as today.
 - `startMusic()` keeps today's handling: a refused `play()` logs a warning; the game never waits on audio.
-- The budget script fails with a clear message if `index.html` is missing (no build) or names no scripts.
+- The budget script fails with a clear message if `route-bundle-stats.json` is missing (no build) or lists no
+  first-load chunks for `/`.
 
 ## Testing
 
