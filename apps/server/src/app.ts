@@ -8,7 +8,7 @@ import type { Db } from './db.ts';
 import { attachGame, userRoom, type GameServer } from './game.ts';
 import { saveGame } from './games.ts';
 import { createHttpApp } from './http.ts';
-import { LIMITS, limiter, perIp, type Limits } from './limits.ts';
+import { clientIp, ipKey, LIMITS, limiter, perIp, type Limits } from './limits.ts';
 import { log } from './log.ts';
 import type { Provider, ProviderName } from './providers.ts';
 import { createSessions } from './sessions.ts';
@@ -61,15 +61,29 @@ export function createApp({
       limit: perIp(limiter('http', limits.httpPerMinute, 60)),
     }),
   );
+  const handshakes = limiter('handshake', limits.handshakesPerMinute, 60);
   const io: GameServer = new Server(http, {
     cors: { origin: origins, credentials: true },
     maxHttpBufferSize: 10_000,
+    // Browsers do not apply CORS to WebSocket, so the handshake's Origin is checked here.
+    allowRequest(req, callback) {
+      if (origins !== true && !origins.includes(req.headers.origin ?? '')) return callback('origin', false);
+      if (io.engine.clientsCount >= limits.maxConnections) return callback('busy', false);
+      handshakes.take(ipKey(clientIp(req, trustProxy))).then(
+        (verdict) => callback(verdict.ok ? null : 'rate-limited', verdict.ok),
+        (error) => {
+          log.error('Handshake check failed', error);
+          callback('unavailable', false);
+        },
+      );
+    },
   });
   const saving = new Set<Promise<void>>(); // games being written; close() waits for them
   const game = attachGame(io, {
     sessions,
     now,
     timeControls,
+    limits,
     // Not awaited by the game: both players already have the result, whatever the database does.
     onGameOver(record) {
       log.info('Game over', { roomId: record.roomId, ...record.result, moves: record.moves.length });
