@@ -16,8 +16,11 @@ export function CameraRig() {
   const camera = useRef<ComponentRef<typeof PerspectiveCamera>>(null!);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null!);
   const gameId = useGame((s) => s.gameId);
-  // The camera sits behind the army the player chose: on +z for the first army, on -z for the second.
-  const sign = useSettings((s) => (s.side === 'w' ? 1 : -1));
+  // The camera sits behind the player's army: their seat in an online game, otherwise the army chosen in
+  // the menu. That is +z for the first army and -z for the second.
+  const side = useSettings((s) => s.side);
+  const seat = useGame((s) => s.seat);
+  const sign = (seat ?? side) === 'w' ? 1 : -1;
   const settled = useRef(false); // false until the first placement
 
   useEffect(() => {

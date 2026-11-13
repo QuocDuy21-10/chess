@@ -28,7 +28,9 @@ function hasWebGL() {
 export default function Scene() {
   const pieces = useGame((s) => s.pieces);
   const select = useGame((s) => s.select);
-  const lightZ = useSettings((s) => (s.side === 'w' ? 6 : -6)); // the key light stays on the camera's side
+  const side = useSettings((s) => s.side);
+  const seat = useGame((s) => s.seat);
+  const lightZ = (seat ?? side) === 'w' ? 6 : -6; // the key light stays on the camera's side
   const [webgl] = useState(hasWebGL);
   const t = useT();
 

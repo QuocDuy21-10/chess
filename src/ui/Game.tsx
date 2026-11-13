@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { setPaused } from '@/audio/audio';
+import { useOnline } from '@/net/online';
 import { useSettings } from '@/state/settings';
 import { Cinematic } from './Cinematic';
 import { GameOverModal } from './GameOverModal';
@@ -37,6 +38,21 @@ export function Game() {
   }, [lang]);
 
   useEffect(() => setPaused(screen === 'paused'), [screen]);
+
+  // An invite link names its room in the address. Opening it joins that room straight away.
+  useEffect(() => {
+    const room = new URLSearchParams(window.location.search).get('room');
+    if (room) useOnline.getState().join(room);
+  }, []);
+
+  // Online, the server decides when the board shows: once both players are in the room.
+  useEffect(
+    () =>
+      useOnline.subscribe((now, before) => {
+        if (now.status !== before.status) setScreen(now.status === 'playing' ? 'playing' : 'menu');
+      }),
+    [],
+  );
 
   // Escape pauses. An open dialog (promotion, game over, the pause menu itself) handles its own Escape.
   useEffect(() => {
