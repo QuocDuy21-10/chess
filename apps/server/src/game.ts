@@ -2,6 +2,7 @@ import type { ClientEvents, ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import type { Server, Socket } from 'socket.io';
 import { readCookie, SID } from './cookies.ts';
+import { log } from './log.ts';
 import { createRooms, type GameRecord, type SeatPlayer } from './rooms.ts';
 import type { Sessions } from './sessions.ts';
 
@@ -83,7 +84,7 @@ export function attachGame(io: GameServer, { sessions, now, timeControls, onGame
       socket.data.user = { id: user.id, name: user.name, rating: user.rating }; // as of connecting
       next();
     } catch (error) {
-      console.error('Socket sign-in check failed:', error);
+      log.error('Socket sign-in check failed', error);
       next(new Error('unavailable'));
     }
   });

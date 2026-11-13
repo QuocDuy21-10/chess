@@ -1,0 +1,134 @@
+# Checks every pull request and push to main; ships main to the VPS. See README, "Continuous integration".
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Full commit SHA of an image in GHCR to deploy (rollback)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push to a pull request replaces the older run; runs on main queue, so a deploy is never cut off.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/quocduy21-10/chess-server
+
+jobs:
+  check:
+    if: github.event_name != 'workflow_dispatch' # a rollback ships an image that already passed
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: chess
+          POSTGRES_PASSWORD: chess
+          POSTGRES_DB: chess_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U chess"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://chess:chess@localhost:5432/chess_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Check the deploy scripts
+        run: shellcheck deploy/*.sh
+      - name: Check the production compose file
+        run: cp deploy/env.example deploy/.env && docker compose -f deploy/compose.yml config -q
+        env:
+          IMAGE_TAG: '0000000000000000000000000000000000000000'
+          POSTGRES_PASSWORD: ci
+          API_DOMAIN: api.example.com
+
+  image:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - if: env.PUSH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # On a pull request the image is built and thrown away, which still catches a broken Dockerfile.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          build-args: GIT_SHA=${{ github.sha }}
+          push: ${{ env.PUSH == 'true' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    # Runs after image on a push to main, or alone on a manual run from main, where check and image are skipped.
+    if: >-
+      !cancelled() && !failure() && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      SHA: ${{ inputs.tag || github.sha }}
+      TARGET: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+    steps:
+      - name: Refuse anything but a full commit SHA
+        run: '[[ $SHA =~ ^[0-9a-f]{40}$ ]] || { echo "tag must be a 40-character commit SHA" >&2; exit 1; }'
+      - uses: actions/checkout@v7
+      - name: Trust the VPS and load the key
+        env:
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/known_hosts ~/.ssh/id_ed25519
+      - name: Copy the stack
+        run: scp deploy/* "$TARGET:/opt/chess/"
+      - name: Deploy
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The token reaches the VPS on stdin, never on a command line, and dies with this job.
+        run: |
+          # shellcheck disable=SC2029 # SHA and the actor are meant to expand here; SHA was checked above
+          printf '%s' "$GHCR_TOKEN" |
+            ssh "$TARGET" "docker login ghcr.io -u $GITHUB_ACTOR --password-stdin && /opt/chess/deploy.sh $SHA"

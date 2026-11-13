@@ -4,6 +4,8 @@
 .git
 .vitest
 docs
+deploy
+.github
 *.md
 *.jpeg
 apps/web/*

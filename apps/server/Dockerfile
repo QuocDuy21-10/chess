@@ -15,6 +15,10 @@ RUN npm ci -w @chess/server --omit=dev
 COPY packages/shared/ packages/shared/
 COPY apps/server/ apps/server/
 
+# The commit this image was built from (CI passes it); Sentry tags every error with it.
+ARG GIT_SHA=dev
+ENV SENTRY_RELEASE=$GIT_SHA
+
 USER node
 EXPOSE 3001
 # Node strips the TypeScript types itself; there is no build step.

@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { migrate as runMigrations } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
+import { log } from './log.ts';
 import * as schema from './schema.ts';
 
 const MIGRATIONS = fileURLToPath(new URL('../drizzle', import.meta.url));
@@ -13,7 +14,7 @@ export type Db = NodePgDatabase<typeof schema>;
 export function connect(url: string) {
   const pool = new pg.Pool({ connectionString: url });
   // An idle connection the database drops (a restart, a failover) must not end the process.
-  pool.on('error', (error) => console.error('Postgres connection lost:', error.message));
+  pool.on('error', (error) => log.warn('Postgres connection lost', { message: error.message }));
   return { pool, db: drizzle({ client: pool, schema }) };
 }
 

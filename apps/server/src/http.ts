@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { type ErrorRequestHandler, type RequestHandler, type Router } from 'express';
 import helmet from 'helmet';
+import { log } from './log.ts';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -50,6 +51,6 @@ export const onError: ErrorRequestHandler = (error, _req, res, next) => {
   if (typeof status === 'number' && status >= 400 && status < 500) {
     return void res.status(status).json({ error: 'bad-request' });
   }
-  console.error(error);
+  log.error('Request failed', error);
   res.status(500).json({ error: 'internal' });
 };

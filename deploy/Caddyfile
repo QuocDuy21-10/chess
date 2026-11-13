@@ -1,0 +1,7 @@
+# HTTPS for the game server. Caddy gets and renews the certificate for API_DOMAIN itself
+# and passes Socket.IO's WebSocket upgrade through.
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy server:3001
+	log
+}
