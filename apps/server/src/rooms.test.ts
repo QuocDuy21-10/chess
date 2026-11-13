@@ -1,5 +1,6 @@
 import { Chess, type Color } from 'chess.js';
 import { beforeEach, expect, test } from 'vitest';
+import { GAMES, REFUSALS } from '@chess/shared/testing';
 import { createRooms, timeoutResult, type Rooms, type SeatPlayer } from './rooms.ts';
 
 const MINUTE = 60_000;
@@ -212,4 +213,22 @@ test('a finished game frees its place among the five', () => {
   expect(rooms.create(ANN, 'w', 5)).toEqual({ error: 'too-many-rooms' });
   expect(rooms.resign(first, 'w')).toBeNull();
   expect(rooms.create(ANN, 'w', 5)).toHaveProperty('roomId');
+});
+
+const mover = (ply: number) => (ply % 2 === 0 ? 'w' : 'b');
+
+test.each(GAMES)('$name is played through the room and recorded as the catalog says', ({ moves, result }) => {
+  const id = started();
+  moves.forEach((move, ply) => expect(rooms.move(id, mover(ply), move), move).toBeNull());
+  expect(rooms.state(id, 'w')?.moves).toEqual(moves);
+  const record = rooms.record(id);
+  if (result) expect(record).toMatchObject({ moves, result });
+  else expect(record).toBeNull();
+});
+
+test.each(REFUSALS)('$name is refused as illegal and changes nothing', ({ moves, refused }) => {
+  const id = started();
+  moves.forEach((move, ply) => expect(rooms.move(id, mover(ply), move), move).toBeNull());
+  expect(rooms.move(id, mover(moves.length), refused)).toBe('illegal');
+  expect(rooms.state(id, 'w')?.moves).toEqual(moves);
 });
