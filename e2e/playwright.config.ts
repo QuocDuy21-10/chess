@@ -26,7 +26,7 @@ export default defineConfig({
     {
       name: 'firefox',
       // CI runners have no GPU: ask Firefox for software WebGL
-      use: { ...devices['Desktop Firefox'], launchOptions: { firefoxUserPrefs: { 'webgl.force-enabled': true, 'webgl.disabled': false } } },
+      use: { ...devices['Desktop Firefox'], launchOptions: { firefoxUserPrefs: { 'webgl.force-enabled': true, 'webgl.disabled': false, 'gfx.webrender.software': true } } },
     },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],

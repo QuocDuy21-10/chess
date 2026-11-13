@@ -101,6 +101,10 @@ jobs:
           key: playwright-1.64.1-${{ matrix.browser }}
       - run: npx playwright install --with-deps ${{ matrix.browser }}
       - run: npm run e2e -- --project=${{ matrix.browser }}
+        if: matrix.browser != 'firefox'
+      # Headless Firefox gets no WebGL2 on a runner; a headed one on a virtual display does.
+      - run: xvfb-run npm run e2e -- --project=firefox --headed
+        if: matrix.browser == 'firefox'
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
