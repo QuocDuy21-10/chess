@@ -2,8 +2,10 @@
   "name": "combat-chess",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
+    "server": "node --watch server/index.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -16,6 +18,8 @@
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
     "three": "^0.187.0",
     "zustand": "^5.1.0"
   },
