@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { setPaused } from '@/audio/audio';
+import { useComputer } from '@/engine/computer';
 import { useOnline } from '@/net/online';
 import { useSettings } from '@/state/settings';
 import { Cinematic } from './Cinematic';
@@ -50,6 +51,20 @@ export function Game() {
     () =>
       useOnline.subscribe((now, before) => {
         if (now.status !== before.status) setScreen(now.status === 'playing' ? 'playing' : 'menu');
+      }),
+    [],
+  );
+
+  // The computer's clocks run, and it plays, only while the board is on screen.
+  useEffect(() => {
+    useComputer.getState().setOnScreen(screen === 'playing');
+  }, [screen]);
+
+  // An engine that fails sends the player to the menu, where the computer panel says so.
+  useEffect(
+    () =>
+      useComputer.subscribe((now, before) => {
+        if (now.error && !before.error) setScreen('menu');
       }),
     [],
   );

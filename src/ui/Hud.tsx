@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
+import { useComputer } from '@/engine/computer';
 import { useOnline } from '@/net/online';
 import { TEAM } from '@/scene/theme';
 import { isLocked, undoPlies, useGame } from '@/state/store';
@@ -70,6 +71,7 @@ function Status() {
   const online = useGame((s) => s.mode === 'online');
   const connected = useOnline((s) => s.connected);
   const opponentOnline = useOnline((s) => s.opponentOnline);
+  const thinking = useComputer((s) => s.thinking);
   const mover = t.team[turn === 'w' ? 'b' : 'w']; // who made the latest move
   const outcome = result && resultText(t, result);
   // Online, while the game is live: say so when either player has lost the server.
@@ -80,6 +82,11 @@ function Status() {
       <p className="portrait:min-w-0 portrait:flex-1 landscape:text-lg">
         {outcome ?? t.toMove(t.team[turn])}
         {!result && inCheck && <span className="ml-2 font-semibold text-red-400">{t.check}</span>}
+        {!result && thinking && (
+          <span role="status" className="block text-sm text-stone-300">
+            {t.thinking}
+          </span>
+        )}
         {trouble && (
           <span role="status" className="block text-sm text-amber-300">
             {trouble}
@@ -93,28 +100,29 @@ function Status() {
   );
 }
 
-/** Online only: both clocks. The server sends a time when something happens; in between, this counts down. */
+/** Both clocks, online or against the computer. A time is known when something happens; in between, this counts down. */
 function Clocks() {
   const t = useT();
   const seat = useGame((s) => s.seat);
   const mode = useGame((s) => s.mode);
-  const clocks = useOnline((s) => s.clocks);
-  const clocksAt = useOnline((s) => s.clocksAt);
-  const running = useOnline((s) => s.running);
+  const online = useOnline((s) => s);
+  const computer = useComputer((s) => s);
+  const { clocks, clocksAt, running } = mode === 'computer' ? computer : online;
   const [now, setNow] = useState(0);
   useEffect(() => {
     if (!running) return;
     const timer = setInterval(() => setNow(performance.now()), 250);
     return () => clearInterval(timer);
   }, [running]);
-  if (mode !== 'online') return null;
+  if (mode === 'local' || (mode === 'computer' && !computer.minutes)) return null;
 
   return (
     <div className="flex flex-col gap-1 font-mono portrait:text-sm">
       {(['w', 'b'] as const).map((color) => {
-        // `now` is older than `clocksAt` until the first tick after a message, hence the floor at zero
+        // `now` is older than `clocksAt` until the first tick after a change, hence the floor at zero
         const elapsed = color === running ? Math.max(0, now - clocksAt) : 0;
         const seconds = Math.ceil(Math.max(0, clocks[color] - elapsed) / 1000);
+        const who = color === seat ? t.you : mode === 'computer' ? t.computer : null;
         return (
           <p
             key={color}
@@ -124,7 +132,7 @@ function Clocks() {
             <span aria-hidden className="size-3 rounded-full" style={{ background: TEAM[color] }} />
             <span className="flex-1 font-sans portrait:sr-only">
               {t.team[color]}
-              {color === seat && ` (${t.you})`}
+              {who && ` (${who})`}
             </span>
             {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
           </p>

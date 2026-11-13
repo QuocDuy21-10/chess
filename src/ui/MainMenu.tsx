@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useComputer } from '@/engine/computer';
+import { COMPUTER_TIMES, LEVELS } from '@/engine/levels';
 import { useOnline } from '@/net/online';
 import { TIME_CONTROLS } from '@/net/protocol';
 import { TEAM } from '@/scene/theme';
@@ -17,23 +19,39 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
   const t = useT();
   const side = useSettings((s) => s.side);
   const update = useSettings((s) => s.update);
-  const inProgress = useGame((s) => s.history.length > 0 || s.result !== null);
+  const computerOn = useComputer((s) => s.active);
+  const computerFailed = useComputer((s) => s.error !== null);
+  const stopComputer = useComputer((s) => s.stop);
+  // A game against the computer can be resumed even before its first move.
+  const inProgress = useGame((s) => s.history.length > 0 || s.result !== null) || computerOn;
   const animating = useGame((s) => s.phase === 'animating');
   const newGame = useGame((s) => s.newGame);
   const status = useOnline((s) => s.status);
   const failed = useOnline((s) => s.error !== null);
-  const [chosen, setChosen] = useState(false); // the player pressed "Play online"
+  const [panel, setPanel] = useState<'main' | 'online' | 'computer'>('main');
   // The online panel also shows while a room is being set up, and to say why the last one ended.
-  const online = chosen || status !== 'off' || failed;
+  const online = panel === 'online' || status !== 'off' || failed;
+  // The computer panel also shows to say why the last game against the computer ended.
+  const computer = !online && (panel === 'computer' || computerFailed);
+  const mode = online ? t.playOnline : computer || computerOn ? t.playComputer : t.twoPlayers;
 
-  function start() {
-    newGame(); // also plays the fade from black and the camera descent
+  /** A new game in the current mode. Also plays the fade from black and the camera descent. */
+  function again() {
+    newGame();
+    onPlay();
+  }
+
+  /** A two-player game. Leaving the computer resets the board by itself. */
+  function twoPlayers() {
+    if (computerOn) stopComputer();
+    else newGame();
     onPlay();
   }
 
   function back() {
-    setChosen(false);
+    setPanel('main');
     useOnline.setState({ error: null });
+    useComputer.setState({ error: null });
   }
 
   return (
@@ -41,7 +59,7 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
       <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl bg-stone-900 p-6 text-stone-100 shadow-2xl">
         <h1 className="text-center text-3xl font-bold">{t.title}</h1>
         <p className="text-center text-stone-300">
-          {t.mode}: {online ? t.playOnline : t.twoPlayers}
+          {t.mode}: {mode}
         </p>
 
         {/* Once a room exists the seat is fixed, so the choice is hidden. */}
@@ -69,6 +87,8 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
 
         {online ? (
           <OnlinePanel onBack={back} />
+        ) : computer ? (
+          <ComputerPanel onBack={back} onPlay={onPlay} />
         ) : (
           <>
             {inProgress ? (
@@ -76,16 +96,24 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
                 <button autoFocus onClick={onPlay} className={primary}>
                   {t.resume}
                 </button>
-                <button onClick={start} disabled={animating} className={secondary}>
+                <button onClick={again} disabled={animating} className={secondary}>
                   {t.newGame}
                 </button>
               </>
             ) : (
-              <button autoFocus onClick={start} className={primary}>
+              <button autoFocus onClick={twoPlayers} className={primary}>
                 {t.start}
               </button>
             )}
-            <button onClick={() => setChosen(true)} className={secondary}>
+            {computerOn && (
+              <button onClick={twoPlayers} disabled={animating} className={secondary}>
+                {t.twoPlayers}
+              </button>
+            )}
+            <button onClick={() => setPanel('computer')} className={secondary}>
+              {t.playComputer}
+            </button>
+            <button onClick={() => setPanel('online')} className={secondary}>
               {t.playOnline}
             </button>
             <button onClick={onSettings} className={secondary}>
@@ -183,8 +211,82 @@ function OnlinePanel({ onBack }: { onBack: () => void }) {
           ))}
         </div>
       </div>
-      <button autoFocus onClick={() => create(minutes)} disabled={animating} className={primary}>
+      <button
+        autoFocus
+        onClick={() => {
+          useComputer.getState().stop();
+          create(minutes);
+        }}
+        disabled={animating}
+        className={primary}
+      >
         {t.createRoom}
+      </button>
+      <button onClick={onBack} className={secondary}>
+        {t.back}
+      </button>
+    </>
+  );
+}
+
+/** Choosing the computer's strength and the time, then starting. */
+function ComputerPanel({ onBack, onPlay }: { onBack: () => void; onPlay: () => void }) {
+  const t = useT();
+  const level = useSettings((s) => s.computerLevel);
+  const minutes = useSettings((s) => s.computerMinutes);
+  const update = useSettings((s) => s.update);
+  const failed = useComputer((s) => s.error !== null);
+  const start = useComputer((s) => s.start);
+  const animating = useGame((s) => s.phase === 'animating');
+
+  function begin() {
+    void start(); // the engine loads behind the camera's descent; the machine moves once it is ready
+    onPlay();
+  }
+
+  return (
+    <>
+      {failed && (
+        <p role="alert" className="text-sm text-red-400">
+          {t.engineError}
+        </p>
+      )}
+      <div role="group" aria-labelledby="level-label" className="flex flex-col gap-2">
+        <span id="level-label" className="text-sm text-stone-300">
+          {t.strength}
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          {LEVELS.map((value) => (
+            <button
+              key={value}
+              aria-pressed={level === value}
+              onClick={() => update({ computerLevel: value })}
+              className={`${secondary} ${pressed}`}
+            >
+              {t.level[value]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div role="group" aria-labelledby="computer-time-label" className="flex flex-col gap-2">
+        <span id="computer-time-label" className="text-sm text-stone-300">
+          {t.timeControl}
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          {COMPUTER_TIMES.map((value) => (
+            <button
+              key={value}
+              aria-pressed={minutes === value}
+              onClick={() => update({ computerMinutes: value })}
+              className={`${secondary} ${pressed}`}
+            >
+              {value ? t.minutes(value) : t.unlimited}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button autoFocus onClick={begin} disabled={animating} className={primary}>
+        {t.start}
       </button>
       <button onClick={onBack} className={secondary}>
         {t.back}
