@@ -204,3 +204,35 @@ test('when the same player joins from another tab, this one returns to the menu'
   expect(online()).toMatchObject({ status: 'off', error: 'replaced' });
   tab.disconnect();
 });
+
+/** Sends `create` from a bare socket of this device's account, and waits for the answer. */
+const createFrom = (client: Client) =>
+  new Promise<CreateAck>((resolve) => client.emit('create', { color: 'w', minutes: 5 }, resolve));
+
+test('a sixth unfinished room is refused, and the menu says why', async () => {
+  const mine = connectAs(me.cookie);
+  for (let i = 0; i < 5; i++) expect(await createFrom(mine)).toHaveProperty('roomId');
+  online().create(5);
+  await until(() => online().error !== null);
+  expect(online()).toMatchObject({ status: 'off', error: 'too-many-rooms' });
+  mine.disconnect();
+});
+
+test('an account that sends too many events is told to slow down', async () => {
+  const mine = connectAs(me.cookie);
+  // The limit is 20 events in 10 seconds; resigning without a seat costs a point like any event.
+  for (let i = 0; i < 20; i++) await new Promise((resolve) => mine.emit('resign', resolve));
+  online().create(5);
+  await until(() => online().error !== null);
+  expect(online()).toMatchObject({ status: 'off', error: 'rate-limited' });
+  mine.disconnect();
+});
+
+test('a sixth tab of one account is told it has too many', async () => {
+  const tabs = Array.from({ length: 5 }, () => connectAs(me.cookie));
+  await until(() => tabs.every((tab) => tab.connected));
+  online().create(5);
+  await until(() => online().error !== null);
+  expect(online()).toMatchObject({ status: 'off', error: 'too-many-tabs' });
+  for (const tab of tabs) tab.disconnect();
+});
