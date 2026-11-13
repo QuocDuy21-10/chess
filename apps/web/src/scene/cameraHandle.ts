@@ -1,8 +1,8 @@
-import type { Vector3 } from 'three';
+import type { Point } from '@/game/types';
 
 export interface CameraRigHandle {
   /** Glide in on the midpoint of two points. Locks manual camera control. */
-  focus(a: Vector3, b: Vector3, ms?: number): Promise<void>;
+  focus(a: Point, b: Point, ms?: number): Promise<void>;
   /** Glide back to the home view and unlock manual control. */
   reset(): Promise<void>;
   /** Descend from above to the home view. */

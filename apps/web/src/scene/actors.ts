@@ -1,9 +1,8 @@
-import type { Vector3 } from 'three';
-import type { PieceId } from '@/game/types';
+import type { PieceId, Point } from '@/game/types';
 
 export interface ActorHandle {
-  moveTo(point: Vector3, mode: 'walk' | 'hop'): Promise<void>;
-  face(point: Vector3): void;
+  moveTo(point: Point, mode: 'walk' | 'hop'): Promise<void>;
+  face(point: Point): void;
   play(clip: 'attack' | 'die'): Promise<void>;
 }
 

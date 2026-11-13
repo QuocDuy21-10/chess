@@ -46,7 +46,7 @@ export function CameraRig() {
     setCameraRig({
       async focus(a, b, ms = CAMERA.focusMs) {
         if (reducedMotion()) return;
-        const mid = a.clone().add(b).multiplyScalar(0.5);
+        const mid = new Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
         await glide(home.clone().lerp(mid, CAMERA.focusAmount), mid, ms);
       },
       async reset() {
