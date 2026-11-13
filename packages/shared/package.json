@@ -6,15 +6,18 @@
   "exports": {
     "./account": "./src/account.ts",
     "./protocol": "./src/protocol.ts",
-    "./result": "./src/result.ts"
+    "./result": "./src/result.ts",
+    "./testing": "./src/testing/games.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "chess.js": "^1.4.0"
   },
   "devDependencies": {
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.1.0"
   }
 }

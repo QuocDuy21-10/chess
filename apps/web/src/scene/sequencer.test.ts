@@ -1,6 +1,8 @@
-import { Chess } from 'chess.js';
+import { GAMES, playMoves } from '@chess/shared/testing';
+import { Chess, DEFAULT_POSITION } from 'chess.js';
 import { expect, test } from 'vitest';
-import { piecesFromBoard } from '@/game/position';
+import { planMove } from '@/game/planMove';
+import { matchesBoard, piecesFromBoard } from '@/game/position';
 import type { Piece, PieceId, Step } from '@/game/types';
 import type { ActorHandle } from './actors';
 import { runSteps } from './sequencer';
@@ -124,4 +126,47 @@ test('a long walk has two footfalls per square, a hop lands once, a promotion ch
 test('walks take at least the minimum time and scale with distance', () => {
   expect(walkMs(0.1)).toBe(TIMING.walkMinMs);
   expect(walkMs(6)).toBe(2000);
+});
+
+/** Plays `moves` from the start through planMove and runSteps; returns the log of the last move and the pieces. */
+async function replay(moves: string[]) {
+  const chess = new Chess();
+  const { log, deps, pieces } = setup(DEFAULT_POSITION);
+  let last: string[] = [];
+  for (const text of moves) {
+    const move = chess.move({ from: text.slice(0, 2), to: text.slice(2, 4), promotion: text[4] });
+    const start = log.length;
+    await runSteps(planMove(move, pieces()), deps);
+    last = log.slice(start);
+    expect(matchesBoard(pieces(), chess), text).toBe(true);
+  }
+  return { last, pieces: pieces() };
+}
+
+test.each(GAMES)('$name animated move by move leaves the pieces where chess.js has them', async ({ moves }) => {
+  const { pieces } = await replay(moves);
+  const ids = pieces.map((p) => p.id);
+  expect(new Set(ids).size).toBe(ids.length); // no piece lost or duplicated its id
+  const board = new Chess();
+  playMoves(board, moves);
+  expect(matchesBoard(pieces, board)).toBe(true);
+});
+
+test('a castle walks the king before the rook hops', async () => {
+  const { last } = await replay(GAMES.find((g) => g.name === 'castles')!.moves.slice(0, 7)); // up to e1g1
+  expect(last.indexOf('w-k-e1 walk end')).toBeLessThan(last.indexOf('w-r-h1 hop start'));
+});
+
+test('en passant fights the pawn beside the target square, then steps in', async () => {
+  const { last, pieces } = await replay(GAMES.find((g) => g.name === 'en-passant')!.moves.slice(0, 5)); // up to e5d6
+  expect(last.indexOf('b-p-d7 die start')).toBeGreaterThan(-1);
+  expect(last.lastIndexOf('w-p-e2 walk start')).toBeGreaterThan(last.indexOf('b-p-d7 die end'));
+  expect(pieces.find((p) => p.id === 'w-p-e2')?.square).toBe('d6');
+});
+
+test('a capture that promotes fights, walks, then promotes, and the piece keeps its id', async () => {
+  const { last, pieces } = await replay(GAMES.find((g) => g.name === 'underpromotion')!.moves);
+  expect(last.indexOf('w-p-h2 attack start')).toBeGreaterThan(-1);
+  expect(last.lastIndexOf('w-p-h2 walk end')).toBeGreaterThan(last.indexOf('b-n-g8 die end'));
+  expect(pieces.find((p) => p.id === 'w-p-h2')).toMatchObject({ type: 'n', square: 'g8' });
 });

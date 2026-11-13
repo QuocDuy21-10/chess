@@ -58,6 +58,11 @@ npm run server                   # the game server, on port 3001; applies new mi
 From the root, `npm test`, `npm run lint` and `npm run typecheck` run in every workspace. The tests need
 Postgres up and `TEST_DATABASE_URL` (in `.env`); they empty the tables of that database.
 
+`npm run e2e` runs the browser tests (Postgres up, as for `npm test`, but not at the same time: both empty
+`chess_test`). It needs a production build of the site first:
+`NEXT_PUBLIC_SERVER_URL=http://localhost:3001 npm run build -w @chess/web`. Pick one browser with
+`npm run e2e -- --project=webkit`; `npm run report -w @chess/e2e` opens the last report.
+
 After changing `apps/server/src/schema.ts`, run `npm run db:generate -w @chess/server`, read the new file
 in `apps/server/drizzle/`, and commit it with the change.
 
@@ -119,11 +124,14 @@ The project's own setup, a VPS deployed by GitHub Actions, is described below.
 
 1. `check`: lint, typecheck, the tests against a Postgres service, the site's build, `shellcheck` on
    `deploy/*.sh`, and `docker compose config` on `deploy/compose.yml`.
-2. `image`: builds the server's image. On `main` it is pushed to `ghcr.io/quocduy21-10/chess-server`, tagged
+2. `e2e`, one job per browser (Chromium, Firefox, WebKit) beside `check`: plays the production build against the
+   real server and Postgres with Playwright: two players to checkmate, a move against the computer, the language
+   setting, and an online game between two browsers. Any console error, CSP violation or missing WebGL fails it.
+3. `image`: builds the server's image. On `main` it is pushed to `ghcr.io/quocduy21-10/chess-server`, tagged
    with the commit's SHA and `latest`.
-3. `deploy`: on `main` only, ships that image to the VPS (below).
+4. `deploy`: on `main` only, ships that image to the VPS (below).
 
-A red `check` stops the other two. The site still deploys through Vercel's Git integration; in the Vercel
+A red `check` or `e2e` stops `image` and `deploy`. The site still deploys through Vercel's Git integration; in the Vercel
 project, Settings → Deployment Checks, add the GitHub check `check` so a production deployment waits for it
 (see https://vercel.com/docs/deployment-checks).
 
