@@ -7,7 +7,11 @@ const en = {
   toMove: (team: string) => `${team} to move`,
   check: 'Check',
   played: (team: string, san: string) => `${team} played ${san}.`,
-  checkmate: (team: string) => `Checkmate — ${team} wins`,
+  win: {
+    checkmate: (team: string) => `Checkmate — ${team} wins`,
+    timeout: (team: string) => `Time out — ${team} wins`,
+    resign: (team: string) => `Resignation — ${team} wins`,
+  },
   draw: {
     stalemate: 'Draw — stalemate',
     insufficient: 'Draw — insufficient material',
@@ -59,7 +63,11 @@ const vi: Strings = {
   toMove: (team) => `Lượt của ${team}`,
   check: 'Chiếu',
   played: (team, san) => `${team} đi ${san}.`,
-  checkmate: (team) => `Chiếu hết — ${team} thắng`,
+  win: {
+    checkmate: (team) => `Chiếu hết — ${team} thắng`,
+    timeout: (team) => `Hết giờ — ${team} thắng`,
+    resign: (team) => `Đầu hàng — ${team} thắng`,
+  },
   draw: {
     stalemate: 'Hòa — hết nước đi',
     insufficient: 'Hòa — không đủ quân để chiếu hết',
@@ -110,5 +118,5 @@ export function useT(): Strings {
 }
 
 export function resultText(t: Strings, result: Result): string {
-  return result.reason === 'checkmate' ? t.checkmate(t.team[result.winner]) : t.draw[result.reason];
+  return 'winner' in result ? t.win[result.reason](t.team[result.winner]) : t.draw[result.reason];
 }

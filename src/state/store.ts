@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { duck, fadeMusic, play } from '@/audio/audio';
 import { planMove } from '@/game/planMove';
 import { matchesBoard, piecesFromBoard } from '@/game/position';
+import { gameResult } from '@/game/result';
 import { squareToWorld } from '@/game/squares';
 import type { Piece, PromotionPiece, Result } from '@/game/types';
 import { actors } from '@/scene/actors';
@@ -37,15 +38,6 @@ interface GameState {
 
 // chess.js is the single source of truth for rules and position.
 const chess = new Chess();
-
-function gameResult(): Result | null {
-  if (chess.isCheckmate()) return { reason: 'checkmate', winner: chess.turn() === 'w' ? 'b' : 'w' };
-  if (chess.isStalemate()) return { reason: 'stalemate' };
-  if (chess.isInsufficientMaterial()) return { reason: 'insufficient' };
-  if (chess.isThreefoldRepetition()) return { reason: 'threefold' };
-  if (chess.isDrawByFiftyMoves()) return { reason: 'fifty' };
-  return null;
-}
 
 const fresh = () => ({
   pieces: piecesFromBoard(chess),
@@ -122,7 +114,7 @@ export const useGame = create<GameState>((set, get) => ({
       console.error('View out of sync with chess.js after', move.san, '— resyncing');
       set({ pieces: piecesFromBoard(chess) });
     }
-    const result = gameResult();
+    const result = gameResult(chess);
     if (result) {
       play('gameover');
       fadeMusic(0.2, 1500);

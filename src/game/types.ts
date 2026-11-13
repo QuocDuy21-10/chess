@@ -19,5 +19,5 @@ export type Step =
 
 /** How a game ended. The interface turns it into words in the player's language. */
 export type Result =
-  | { reason: 'checkmate'; winner: Color }
+  | { reason: 'checkmate' | 'timeout' | 'resign'; winner: Color }
   | { reason: 'stalemate' | 'insufficient' | 'threefold' | 'fifty' };
