@@ -23,7 +23,8 @@ test('two browsers play online through the real server, and the game reaches the
   await bob.getByRole('button', { name: 'Yes' }).click();
   await expect(page.getByRole('dialog', { name: 'Game over' })).toContainText('Resignation — Amber wins');
 
-  await page.getByRole('button', { name: 'Main menu' }).click();
+  // force: on a CI runner the software-rendered scene starves animation frames, so the stability check never passes
+  await page.getByRole('button', { name: 'Main menu' }).click({ force: true });
   await page.getByRole('button', { name: 'Play online' }).click();
   await page.getByRole('button', { name: 'Profile' }).click();
   await expect(page.getByText('Win · E2E Bob').first()).toBeVisible(); // the opponent in the match history
