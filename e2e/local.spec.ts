@@ -1,6 +1,8 @@
 import { expect, expectWebGL, moveCount, test, typeMove } from './fixtures.ts';
 
 test('two players on one device play to checkmate, and Undo reopens the game', async ({ page }) => {
+  const engine: string[] = [];
+  page.on('request', (request) => void (request.url().includes('/engine/') && engine.push(request.url())));
   await page.goto('/');
   await expectWebGL(page);
   await page.getByRole('button', { name: 'Start', exact: true }).click();
@@ -12,4 +14,5 @@ test('two players on one device play to checkmate, and Undo reopens the game', a
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(over).toBeHidden();
   await expect.poll(() => moveCount(page)).toBe(3);
+  expect(engine, 'a two-player game never loads the engine').toEqual([]);
 });
