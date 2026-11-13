@@ -2,8 +2,8 @@ export const PALETTE = {
   lightTile: '#D9C7A3', // sandstone
   darkTile: '#3B4252', // slate
   base: '#5B4636', // walnut
-  amber: '#D97706',
-  teal: '#0F766E',
+  red: '#B91C1C',
+  blue: '#1D4ED8',
   steel: '#CBD5E1',
   gold: '#EAB308',
   wood: '#7C4A1E',
@@ -13,10 +13,18 @@ export const PALETTE = {
   lastMove: '#A3B18A',
   check: '#DC2626',
   marker: '#16A34A',
-  background: '#1C1917',
+  background: '#3D3142', // dusk; the fog fades the earth beyond the wall into it
+  stone: '#8C8279',
+  stoneDark: '#5C554E',
+  earth: '#3B3026',
+  roof: '#4B4F5C',
+  iron: '#3F3F46',
+  flame: '#FFA040',
+  sun: '#FFD9B0',
+  skyFill: '#A8B8D8',
 } as const;
 
-export const TEAM = { w: PALETTE.amber, b: PALETTE.teal } as const;
+export const TEAM = { w: PALETTE.red, b: PALETTE.blue } as const;
 
 // Starting values, tuned by eye.
 export const TIMING = {
@@ -38,12 +46,21 @@ export const STAND_OFF = 0.7; // squares between attacker and defender during a 
 
 // fitAspect: the narrowest width/height at which `fov` still shows the whole board
 export const CAMERA = {
-  position: [0, 10, 9] as [number, number, number],
+  position: [0, 6.88, 11.58] as [number, number, number],
+  target: [0, 0.4, -0.6] as [number, number, number], // above and beyond the centre, so the far wall is in frame
   fov: 36,
-  fitAspect: 1.33,
+  fitAspect: 1.45,
+  maxDistance: 14,
   focusMs: 400,
   focusAmount: 0.45, // how far the camera travels from home toward a fight
   introMs: 1200,
   introScale: 1.6, // the opening descent starts this many times farther out than home
   checkmateMs: 1200,
 };
+
+export const COURTYARD = {
+  floorY: -1.1, // the flagstones' top: the dais's two 0.3 steps rise from here to the walnut base's bottom at -0.5
+  wallRadius: 12,
+  wallHeight: 3,
+  merlonHeight: 0.5,
+} as const;

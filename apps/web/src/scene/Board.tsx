@@ -44,7 +44,13 @@ export function Board() {
               select(square);
             }}
           >
-            <meshStandardMaterial color={color} roughness={dark ? 0.85 : 0.5} />
+            <meshStandardMaterial
+              color={color}
+              roughness={dark ? 0.85 : 0.5}
+              // glows, so a red king does not blend into its own square
+              emissive={square === checked ? PALETTE.check : '#000000'}
+              emissiveIntensity={square === checked ? 0.6 : 0}
+            />
           </RoundedBox>
         );
       })}

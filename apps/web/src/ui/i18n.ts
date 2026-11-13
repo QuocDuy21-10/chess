@@ -3,7 +3,7 @@ import { useSettings } from '@/state/settings';
 
 const en = {
   title: 'Combat Chess',
-  team: { w: 'Amber', b: 'Teal' },
+  team: { w: 'Red', b: 'Blue' },
   toMove: (team: string) => `${team} to move`,
   check: 'Check',
   played: (team: string, san: string) => `${team} played ${san}.`,
@@ -89,6 +89,7 @@ const en = {
   done: 'Done',
   engineCredit: 'Computer opponent: Stockfish, GPL-3.0.',
   engineLicense: 'Licence',
+  modelCredit: '3D pieces: made with Meshy, CC BY 4.0.',
   engineSource: 'Source code',
   provider: { google: 'Google', github: 'GitHub' } as Record<string, string>,
   signInWith: (provider: string) => `Sign in with ${provider}`,
@@ -114,7 +115,7 @@ export type Strings = typeof en;
 // `Strings` makes a missing or misspelt key a type error.
 const vi: Strings = {
   title: 'Combat Chess',
-  team: { w: 'Cam', b: 'Lục' },
+  team: { w: 'Đỏ', b: 'Xanh' },
   toMove: (team) => `Lượt của ${team}`,
   check: 'Chiếu',
   played: (team, san) => `${team} đi ${san}.`,
@@ -200,6 +201,7 @@ const vi: Strings = {
   done: 'Xong',
   engineCredit: 'Máy chơi cờ: Stockfish, giấy phép GPL-3.0.',
   engineLicense: 'Giấy phép',
+  modelCredit: 'Quân cờ 3D: tạo bằng Meshy, giấy phép CC BY 4.0.',
   engineSource: 'Mã nguồn',
   provider: { google: 'Google', github: 'GitHub' },
   signInWith: (provider) => `Đăng nhập bằng ${provider}`,

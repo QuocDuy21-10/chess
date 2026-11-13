@@ -1,13 +1,15 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useRef } from 'react';
 import { Vector3, type Group } from 'three';
 import { squareToWorld } from '@/game/squares';
 import type { Piece, Point } from '@/game/types';
 import { useGame } from '@/state/store';
 import { actors, type ActorHandle } from './actors';
 import { Bishop } from './pieces/Bishop';
+import { GlbPiece, ModelBoundary } from './pieces/GlbPiece';
 import { King } from './pieces/King';
 import { Knight } from './pieces/Knight';
+import { MODELS } from './pieces/models';
 import { Pawn } from './pieces/Pawn';
 import { Queen } from './pieces/Queen';
 import type { Rig } from './pieces/rig';
@@ -15,7 +17,7 @@ import { Rook } from './pieces/Rook';
 import { TEAM, TIMING, walkMs } from './theme';
 import { tween } from './tween';
 
-const MODELS = { p: Pawn, n: Knight, b: Bishop, r: Rook, q: Queen, k: King };
+const BUILT = { p: Pawn, n: Knight, b: Bishop, r: Rook, q: Queen, k: King };
 
 /** One piece on the board. Owns its position and facing, and registers itself as an actor. */
 export function PieceActor({ piece }: { piece: Piece }) {
@@ -84,7 +86,9 @@ export function PieceActor({ piece }: { piece: Piece }) {
     m.scale.y = m.scale.x * (1 + Math.sin(clock.elapsedTime * 2 + offset) * 0.015);
   });
 
-  const Model = MODELS[piece.type];
+  const Built = BUILT[piece.type];
+  const color = TEAM[piece.color];
+  const built = <Built ref={rig} color={color} />;
   return (
     <group
       ref={group}
@@ -95,7 +99,15 @@ export function PieceActor({ piece }: { piece: Piece }) {
       }}
     >
       <group ref={model}>
-        <Model ref={rig} color={TEAM[piece.color]} />
+        {MODELS[piece.type] ? (
+          <ModelBoundary fallback={built}>
+            <Suspense fallback={built}>
+              <GlbPiece type={piece.type} ref={rig} color={color} />
+            </Suspense>
+          </ModelBoundary>
+        ) : (
+          built
+        )}
       </group>
     </group>
   );

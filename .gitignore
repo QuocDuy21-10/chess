@@ -38,3 +38,4 @@ Thumbs.db
 # local only
 .claude/settings.local.json
 docs-local/
+/apps/web/assets-src/
