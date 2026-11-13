@@ -8,7 +8,7 @@ const eslintConfig = defineConfig([
   // three.js loads with the 3D scene (a dynamic import). A value import anywhere else puts it in the first load.
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/scene/**/*.tsx"],
+    ignores: ["src/scene/**/*.tsx", "src/**/*.test.ts"], // tests never ship to the browser
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",

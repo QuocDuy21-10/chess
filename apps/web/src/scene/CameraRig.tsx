@@ -26,7 +26,8 @@ export function CameraRig() {
   useEffect(() => {
     const [x, y, z] = CAMERA.position;
     const home = new Vector3(x, y, z * sign);
-    const centre = new Vector3();
+    const [tx, ty, tz] = CAMERA.target;
+    const centre = new Vector3(tx, ty, tz * sign);
     // While gliding the controls are disabled, so their distance and angle limits do not clamp the path.
     const glide = (position: Vector3, target: Vector3, ms: number) => {
       const fromPosition = camera.current.position.clone();
@@ -83,7 +84,7 @@ export function CameraRig() {
         ref={controls}
         enablePan={false}
         minDistance={5}
-        maxDistance={14}
+        maxDistance={CAMERA.maxDistance}
         minPolarAngle={Math.PI / 6}
         maxPolarAngle={Math.PI / 2.6}
         // Behind the second army the range is centred on π. OrbitControls accepts a range that crosses π.

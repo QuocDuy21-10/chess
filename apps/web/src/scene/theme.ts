@@ -38,12 +38,21 @@ export const STAND_OFF = 0.7; // squares between attacker and defender during a 
 
 // fitAspect: the narrowest width/height at which `fov` still shows the whole board
 export const CAMERA = {
-  position: [0, 10, 9] as [number, number, number],
+  position: [0, 6.88, 11.58] as [number, number, number],
+  target: [0, 0.4, -0.6] as [number, number, number], // above and beyond the centre, so the far wall is in frame
   fov: 36,
-  fitAspect: 1.33,
+  fitAspect: 1.45,
+  maxDistance: 14,
   focusMs: 400,
   focusAmount: 0.45, // how far the camera travels from home toward a fight
   introMs: 1200,
   introScale: 1.6, // the opening descent starts this many times farther out than home
   checkmateMs: 1200,
 };
+
+export const COURTYARD = {
+  floorY: -1.1, // the flagstones' top: the dais's two 0.3 steps rise from here to the walnut base's bottom at -0.5
+  wallRadius: 12,
+  wallHeight: 3,
+  merlonHeight: 0.5,
+} as const;
