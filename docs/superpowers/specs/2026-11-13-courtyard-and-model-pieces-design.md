@@ -59,7 +59,7 @@ A new `scene/Courtyard.tsx`, mounted in `Scene.tsx` next to `<Board />`. No asse
 |---|---|
 | Dais | Two stone steps under the existing walnut base: 11 × 11 and 13 × 13, 0.3 high each, bevelled (`RoundedBox`). |
 | Floor | Flagstones from the dais out to the wall: one `InstancedMesh` of a few hundred slabs, each with a small random height and shade (seeded, so every load looks the same). Beyond the wall, a wide earth plane. |
-| Walls | A ring of wall at a radius of 12, 2.2 high, with merlons on top (0.45 high, one `InstancedMesh`), and a round tower with a conical roof at each of the four diagonal points of the ring, so either side sees two. |
+| Walls | A ring of wall at a radius of 12, 3 high from the flagstones (which lie 1.1 below the board), with merlons on top (0.5 high, one `InstancedMesh`), and a round tower with a conical roof at each of the four diagonal points of the ring, so either side sees two. |
 | Braziers | Four, on the corners of the top step: a stone bowl, an emissive flame and a warm point light whose intensity flickers. No shadows. |
 | Banners | One tall pole behind each army, its cloth in that team's colour with our own emblem: an inverted chevron over two crossed spears. The cloth waves (vertex offsets each frame on a 10 × 16 plane). |
 | Background and fog | Background and `fog` in a dusk colour; the earth plane beyond the wall fades into it. Within the camera's limits the view never reaches the horizon, so there is no sky dome. |
@@ -76,8 +76,9 @@ three.js's `PerspectiveCamera`:
 | `target` (new) | the origin | `[0, 0.4, -0.6]` |
 | `fitAspect` | 1.33 | 1.45 |
 
-The distance to the target is 13.8, inside `maxDistance` 14. At aspect 1.6 the board fills 85% of the frame's height,
-and the far wall shows up to 2.7 units high: all of its body and merlons. The second army's camera mirrors `position`
+The distance to the target is 13.8, inside `maxDistance` 14. The board fills 85% of the frame's height, and at
+`fitAspect` 95% of its width. The top of the far wall's merlons, 2.4 above the board, sits at 96% of the frame's height,
+so all of the wall shows. The second army's camera mirrors `position`
 and `target` in z. The orbit limits do not change. The board looks more side-on and the far ranks a little smaller.
 
 **Light.** The key light becomes warm late sun and keeps the only shadow; its shadow camera covers the board, not the
@@ -219,7 +220,8 @@ If 3 fails, the triangle target and texture size come down until it fits.
     `public/models/`; every file there is listed; each is at most 600 KB and all together at most 3.5 MB; each listed
     clip name is one of the file's animations; names match `<piece>-<n>.glb`.
   - `clipTime` unit tests: looping, clamping, `phase = 0`.
-  - `ui/i18n.ts` team names.
+  - `scene/camera.test.ts`: the new default view frames the board and the far wall (three.js projection).
+  - `scene/courtyard.test.ts`: the seeded flagstones and the wall ring.
 - **Playwright**: the new team names; no request under `/models/` fails and the console has no errors during a game.
 - **In the browser** (screenshots in the pull request): the courtyard from both sides; the pilot pawn of each team at
   rest, walking, attacking and dying; a red king in check; reduced motion.
