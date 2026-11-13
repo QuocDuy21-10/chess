@@ -2,41 +2,16 @@
   "name": "combat-chess",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "next dev",
-    "server": "node --watch server/index.ts",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@chess/shared": "*",
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
-    "chess.js": "^1.4.0",
-    "next": "16.4.6",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "socket.io": "^4.8.4",
-    "socket.io-client": "^4.8.4",
-    "three": "^0.187.0",
-    "zustand": "^5.1.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/turbopack": "4.3.3",
-    "@types/node": "^22.20.5",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/three": "^0.187.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.6",
-    "tailwindcss": "4.3.3",
-    "typescript": "^5",
-    "vitest": "^5.1.0"
+    "dev": "npm run dev -w @chess/web",
+    "server": "npm run dev -w @chess/server",
+    "build": "npm run build -w @chess/web",
+    "test": "npm test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }

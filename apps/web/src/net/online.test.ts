@@ -1,8 +1,8 @@
+import { createApp } from '@chess/server/app';
 import type { ClientEvents, CreateAck, RoomState, ServerEvents } from '@chess/shared/protocol';
 import { io, type Socket } from 'socket.io-client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { useGame } from '@/state/store';
-import { createApp } from '../../server/app.ts';
 import { useOnline } from './online';
 
 // This device's side of an online game, against the real server. The opponent is a bare socket.

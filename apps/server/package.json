@@ -1,0 +1,33 @@
+{
+  "name": "@chess/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chess/shared": "*",
+    "chess.js": "^1.4.0",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@types/node": "^22.20.5",
+    "eslint": "^9",
+    "socket.io-client": "^4.8.4",
+    "typescript": "^5",
+    "typescript-eslint": "^8",
+    "vitest": "^5.1.0"
+  }
+}
