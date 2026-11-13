@@ -21,6 +21,7 @@ const DUCKED = 0.35; // fraction of the music level left during a fight
 const PAUSED = 0.35; // and while the pause menu is open
 
 let ctx: AudioContext | null = null;
+let track: HTMLAudioElement | null = null;
 let master: GainNode;
 let sfx: GainNode;
 let music: GainNode;
@@ -49,6 +50,7 @@ export function play(name: SoundName, delayMs = 0): void {
 export function setMuted(value: boolean): void {
   muted = value;
   if (ctx) master.gain.value = muted ? 0 : 1;
+  if (!value) startMusic();
 }
 
 function rampMusic(ms: number) {
@@ -72,8 +74,10 @@ export function setPaused(on: boolean): void {
 /** Sets the player's volume for one channel, 0 to 1. Remembered until the audio is unlocked. */
 export function setVolume(channel: 'music' | 'sfx', value: number): void {
   volume[channel] = value;
-  if (channel === 'music') rampMusic(50);
-  else if (ctx) sfx.gain.value = value;
+  if (channel === 'music') {
+    rampMusic(50);
+    if (value > 0) startMusic();
+  } else if (ctx) sfx.gain.value = value;
 }
 
 /** Fades the music to `to` (0 to 1) of its normal level. */
@@ -105,13 +109,19 @@ function unlock() {
   music.connect(master);
   master.connect(ctx.destination);
 
+  startMusic();
+
+  for (const file of Object.values(FILES).flat()) void load(file);
+}
+
+/** Starts the music once it can be heard: after the first gesture, not muted, with some music volume. */
+function startMusic() {
+  if (track || !ctx || muted || volume.music === 0) return; // a muted player never downloads the 1.7 MB track
   // The music streams through an <audio> element instead of being decoded whole into memory.
-  const track = new Audio('/audio/music.mp3');
+  track = new Audio('/audio/music.mp3');
   track.loop = true;
   ctx.createMediaElementSource(track).connect(music);
   track.play().catch((error) => console.warn('Music is unavailable:', error));
-
-  for (const file of Object.values(FILES).flat()) void load(file);
 }
 
 if (typeof window !== 'undefined') {
