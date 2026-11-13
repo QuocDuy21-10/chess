@@ -1,9 +1,11 @@
-import type { ClientEvents, RoomState, ServerEvents } from '@chess/shared/protocol';
+import type { ClientEvents, Player, RoomState, ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
 import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
+import { useAccount } from './account';
+import { serverUrl } from './server';
 
 // The connection to the game server. The interface reads `useOnline`; the board is driven through `useGame`.
 
@@ -17,6 +19,7 @@ interface OnlineState {
   running: Color | null; // whose clock is running, by the server's move list
   connected: boolean; // the server has spoken on the current connection
   opponentOnline: boolean;
+  players: Record<Color, Player | null>; // names and ratings, for the HUD
   error: OnlineError | null; // why the last room was left, when it was not the player's choice
   create(minutes: number): void;
   join(roomId: string): void;
@@ -34,13 +37,11 @@ const idle = {
   running: null,
   connected: false,
   opponentOnline: false,
+  players: { w: null, b: null },
 };
 
 let socket: Socket<ServerEvents, ClientEvents> | null = null;
 let moves: string[] = []; // the server's latest list: where the board returns when a move is refused
-
-/** NEXT_PUBLIC_SERVER_URL, or port 3001 on the page's own host so a phone can reach a development server. */
-export const serverUrl = () => process.env.NEXT_PUBLIC_SERVER_URL ?? `${location.protocol}//${location.hostname}:3001`;
 
 function hangUp() {
   socket?.removeAllListeners();
@@ -59,7 +60,8 @@ export const useOnline = create<OnlineState>((set, get) => {
       .getState()
       .sync([])
       .then(() => useGame.getState().newGame());
-    history.replaceState(null, '', location.pathname);
+    // Signed out, an invite link keeps its ?room= so the sign-in can come back to it.
+    if (error !== 'signed-out') history.replaceState(null, '', location.pathname);
     set({ ...idle, error });
   }
 
@@ -86,6 +88,7 @@ export const useOnline = create<OnlineState>((set, get) => {
       running: state.started && !state.result ? (state.moves.length % 2 ? 'b' : 'w') : null,
       connected: true,
       opponentOnline: state.opponentOnline,
+      players: state.players,
     });
     void useGame
       .getState()
@@ -120,7 +123,10 @@ export const useOnline = create<OnlineState>((set, get) => {
     });
     opened.on('connect_error', (error) => {
       // No session (never signed in, signed out, or expired): socket.io does not retry this one.
-      if (error.message === 'unauthorized') return quit('signed-out');
+      if (error.message === 'unauthorized') {
+        useAccount.setState({ status: 'signed-out', user: null });
+        return quit('signed-out');
+      }
       if (get().status === 'connecting') quit('unreachable'); // mid-game, socket.io keeps trying by itself
     });
     opened.on('disconnect', (reason) => {

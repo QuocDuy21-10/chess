@@ -4,6 +4,7 @@ import type { ClientEvents, CreateAck, RoomState, ServerEvents } from '@chess/sh
 import { io, type Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { useGame } from '@/state/store';
+import { useAccount } from './account';
 import { useOnline } from './online';
 
 // This device's side of an online game, against the real server. The opponent is a bare socket.
@@ -100,6 +101,7 @@ test('a created room waits for an opponent, then both sides play', async () => {
   await bobJoins(roomId);
   await until(() => online().status === 'playing');
   expect(online()).toMatchObject({ running: 'w', connected: true, opponentOnline: true });
+  expect(online().players).toEqual({ w: { name: 'Me', rating: 1500 }, b: { name: 'Bob', rating: 1500 } });
   expect(online().clocks.w).toBeGreaterThan(299_000);
 
   // A move made here reaches the opponent.
@@ -152,11 +154,14 @@ test('a room that does not exist returns to the menu with the reason', async () 
   expect(game().seat).toBeNull();
 });
 
-test('without a session the menu is told to sign in', async () => {
+test('without a session the menu is told to sign in, and an invite link keeps its room', async () => {
   me.cookie = '';
-  online().create(5);
+  useAccount.setState({ status: 'signed-in' });
+  online().join('abcdefgh');
   await until(() => online().error !== null);
   expect(online()).toMatchObject({ status: 'off', roomId: null, error: 'signed-out' });
+  expect(useAccount.getState().status).toBe('signed-out');
+  expect(replaceState).not.toHaveBeenCalled(); // the address still says ?room=abcdefgh
 });
 
 test('a server that cannot be reached is reported', async () => {
