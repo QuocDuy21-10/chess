@@ -16,13 +16,24 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000" },
 ];
 
+// The engine's names carry Stockfish's version and never change in place (src/engine/files.test.ts).
+// A changed sound reaches returning players within a week.
+const cacheHeaders = [
+  { source: "/engine/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+  {
+    source: "/audio/:file*",
+    headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }],
+  },
+];
+
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
   // Production only: `next dev` needs eval for React's error overlay, which this policy forbids.
   async headers() {
-    return process.env.NODE_ENV === "production" ? [{ source: "/:path*", headers: securityHeaders }] : [];
+    const security = process.env.NODE_ENV === "production" ? [{ source: "/:path*", headers: securityHeaders }] : [];
+    return [...cacheHeaders, ...security];
   },
   turbopack: {
     rules: {
