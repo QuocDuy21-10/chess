@@ -141,3 +141,19 @@ test('resigning ends the game for both players', async () => {
   expect(ack).toEqual({ ok: true });
   expect(seenByAnn.result).toEqual({ reason: 'resign', winner: 'w' });
 });
+
+test('the health check answers, and any other path is a JSON 404', async () => {
+  const health = await fetch(`http://localhost:${port}/health`);
+  expect(health.status).toBe(200);
+  expect(await health.json()).toEqual({ status: 'ok' });
+
+  const missing = await fetch(`http://localhost:${port}/nowhere`);
+  expect(missing.status).toBe(404);
+  expect(await missing.json()).toEqual({ error: 'not-found' });
+});
+
+test('HTTP answers carry the security headers and do not name Express', async () => {
+  const { headers } = await fetch(`http://localhost:${port}/health`);
+  expect(headers.get('x-content-type-options')).toBe('nosniff');
+  expect(headers.get('x-powered-by')).toBeNull();
+});
