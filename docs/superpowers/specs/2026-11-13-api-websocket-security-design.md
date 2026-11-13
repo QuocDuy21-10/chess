@@ -58,7 +58,7 @@ All in one object, `LIMITS`, in `apps/server/src/limits.ts`, except the per-play
 |---|---|---|---|
 | HTTP requests, every route except `GET /health` | IP | 300 a minute | `429 {"error":"rate-limited"}` with `Retry-After` (seconds) |
 | `GET /auth/:provider` and `GET /auth/:provider/callback` | IP | 60 every 10 minutes, on top of the above | as above |
-| Socket.IO handshake and WebSocket upgrade (`allowRequest`) | IP | 120 a minute (each connection makes up to two requests: about 60 connections) | HTTP 403 |
+| Socket.IO handshake (`allowRequest`, which engine.io calls for the handshake only, not the WebSocket upgrade) | IP | 60 a minute | HTTP 403 |
 | Handshake `Origin` | — | Must be one of `CLIENT_ORIGIN` when it is set; anything when it is not (development) | HTTP 403 |
 | Open connections, all players | — | 2000 (`io.engine.clientsCount`) | HTTP 403 |
 | Open connections of one account | account | 5 | `connect_error` with message `too-many-connections` |
@@ -80,7 +80,7 @@ two handshakes arriving together can both pass.
 export interface Limits {
   httpPerMinute: number;          // 300
   authPer10Minutes: number;       // 60
-  handshakesPerMinute: number;    // 120
+  handshakesPerMinute: number;    // 60
   maxConnections: number;         // 2000
   connectionsPerUser: number;     // 5
   eventsPer10Seconds: number;     // 20
@@ -283,14 +283,12 @@ The server's own responses keep helmet's defaults, CSP included.
 
 ## To verify during implementation
 
-- Whether `stockfish-19-lite-single.js` calls `eval` or `new Function`. If it does, `/engine/:path*` gets its
-  own CSP with `'unsafe-eval'` added; the rest of the site keeps the policy above.
-- That `next.config.ts` can import `./src/csp.ts` in Next 16.4 (otherwise the function moves into
-  `next.config.ts` and the test imports it from there).
-- That `socket.use` sees the ack as the packet's last element in Socket.IO 4.8, and that `allowRequest`'s
-  refusal reaches socket.io-client as a `connect_error`.
-- Whether Socket.IO calls `allowRequest` for the WebSocket upgrade as well as the handshake (the handshake limit's
-  numbers assume it does).
+- That an `allowRequest` refusal reaches socket.io-client as a `connect_error`.
+
+Checked while planning: `stockfish-19-lite-single.js` has no `eval` or `new Function`, so `/engine/` needs no
+CSP of its own; `next.config.ts` can import `./src/csp.ts` (Next 16.4 loaded such an import under
+`next typegen`); Socket.IO 4.8 appends the ack to the arguments `socket.use` sees; engine.io calls `allowRequest`
+for the handshake only.
 
 ## Out of scope
 
