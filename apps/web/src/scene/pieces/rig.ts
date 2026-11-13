@@ -21,3 +21,9 @@ export function keys(t: number, ...values: number[]): number {
   const i = Math.min(Math.floor(x), values.length - 2);
   return values[i] + (values[i + 1] - values[i]) * (x - i);
 }
+
+/** Where a clip of `duration` seconds stands at `value`: a looping clip wraps every 1, a one-shot clip clamps to 0..1. */
+export function clipTime(value: number, duration: number, loop: boolean): number {
+  const t = loop ? value - Math.floor(value) : Math.min(Math.max(value, 0), 1);
+  return t * duration;
+}

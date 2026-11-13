@@ -10,7 +10,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
-    "size": "node scripts/bundle-size.ts"
+    "size": "node scripts/bundle-size.ts",
+    "models": "sh -c 'gltf-transform optimize \"$0\" \"$1\" --compress meshopt --texture-compress webp --texture-size 512 --instance false'"
   },
   "dependencies": {
     "@chess/shared": "*",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@chess/server": "*",
+    "@gltf-transform/cli": "4.5.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^22.20.5",
     "@types/react": "^19",
