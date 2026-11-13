@@ -45,6 +45,7 @@ designs below.
 | How models move | Rigged skeletons with animation clips, played through the existing `Rig` interface. |
 | Licence | Meshy free plan: CC BY 4.0. Credited in `public/models/CREDITS.md` and in Settings. |
 | Scene around the board | A castle courtyard at dusk, built in code. |
+| Default view | Lowered from 48° to 28° so the courtyard's far wall is in frame; the wall comes in to a radius of 12. |
 | Team colours | Red and blue, named "Đỏ/Xanh" and "Red/Blue". |
 | Rollout | A pilot pawn proves the pipeline before credits go to the other five pieces. |
 | Missing or broken model | That piece type falls back to its current primitive-built model. |
@@ -56,12 +57,28 @@ A new `scene/Courtyard.tsx`, mounted in `Scene.tsx` next to `<Board />`. No asse
 
 | Element | Build |
 |---|---|
-| Dais | Two stone steps under the existing walnut base: about 11 × 11 and 13 × 13, 0.3 high each, bevelled (`RoundedBox`). |
-| Floor | Flagstones around the dais out to a radius of about 20: one `InstancedMesh` of about 400 slabs, each with a small random height and shade (seeded, so every load looks the same). |
-| Walls | A ring of wall at a radius of about 18, with merlons (one `InstancedMesh`), and a round tower with a conical roof at each far corner. |
-| Braziers | Four, at the dais corners: a stone bowl, an emissive flame and a warm point light whose intensity flickers. No shadows. |
+| Dais | Two stone steps under the existing walnut base: 11 × 11 and 13 × 13, 0.3 high each, bevelled (`RoundedBox`). |
+| Floor | Flagstones from the dais out to the wall: one `InstancedMesh` of a few hundred slabs, each with a small random height and shade (seeded, so every load looks the same). Beyond the wall, a wide earth plane. |
+| Walls | A ring of wall at a radius of 12, 2.2 high, with merlons on top (0.45 high, one `InstancedMesh`), and a round tower with a conical roof at each of the four diagonal points of the ring, so either side sees two. |
+| Braziers | Four, on the corners of the top step: a stone bowl, an emissive flame and a warm point light whose intensity flickers. No shadows. |
 | Banners | One tall pole behind each army, its cloth in that team's colour with our own emblem: an inverted chevron over two crossed spears. The cloth waves (vertex offsets each frame on a 10 × 16 plane). |
-| Sky and fog | drei `<Sky>` with a low sun, and `fog` in the dusk colour, so the walls fade into the distance. |
+| Background and fog | Background and `fog` in a dusk colour; the earth plane beyond the wall fades into it. Within the camera's limits the view never reaches the horizon, so there is no sky dome. |
+
+### Camera
+
+At today's default (`[0, 10, 9]`, looking 48° down) the frame ends 8–13 units past the board's centre, so a wall
+would be out of sight. The default view comes down to 28°, measured by projecting the board and the wall through
+three.js's `PerspectiveCamera`:
+
+| `CAMERA` in `theme.ts` | Today | New |
+|---|---|---|
+| `position` | `[0, 10, 9]` | `[0, 6.88, 11.58]` |
+| `target` (new) | the origin | `[0, 0.4, -0.6]` |
+| `fitAspect` | 1.33 | 1.45 |
+
+The distance to the target is 13.8, inside `maxDistance` 14. At aspect 1.6 the board fills 85% of the frame's height,
+and the far wall shows up to 2.7 units high: all of its body and merlons. The second army's camera mirrors `position`
+and `target` in z. The orbit limits do not change. The board looks more side-on and the far ranks a little smaller.
 
 **Light.** The key light becomes warm late sun and keeps the only shadow; its shadow camera covers the board, not the
 courtyard, so piece shadows stay sharp. A cool hemisphere light replaces the ambient light as fill. Brazier lights add
@@ -170,8 +187,9 @@ the optimised file, which only the pilot can tell; it is absent for the rook.
     last pose.
   - Otherwise the idle clip plays in real time.
   - The time mapping is a pure function, `clipTime(value, duration, loop)`.
-- **No clips** (the rook, or a model whose clips fail the pilot): the current model's poses for that type applied to
-  the whole model (the rook rocks, rams and tips over; its wheels no longer turn).
+- **No clips** (the rook, or a model whose clips fail the pilot): whole-model poses — a bob while walking, a lunge
+  forward to attack, a fall backward to die. The rook's own poses (rock, ram, tip over; its wheels no longer turn)
+  come with sub-project C.
 - **Team colour.** The materials are cloned once per team and patched with `onBeforeCompile`: after the texture is
   sampled, a texel whose red and blue are high and green low is replaced by the team colour at the texel's brightness,
   so the baked shading survives. All pieces of one team share those materials.
@@ -212,7 +230,7 @@ If 3 fails, the triangle target and texture size come down until it fits.
 
 - The other five models (sub-project C).
 - A graphics-quality setting.
-- Changing the camera's limits or the fight choreography.
+- Changing the camera's orbit limits, or the fight choreography.
 - Mixing animation clips (cross-fades); poses switch directly, as today.
 
 ## Risks
