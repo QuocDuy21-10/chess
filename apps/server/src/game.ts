@@ -98,8 +98,7 @@ export function attachGame(io: GameServer, { sessions, now, timeControls, onGame
       if ((color !== 'w' && color !== 'b') || typeof minutes !== 'number' || !timeControls.includes(minutes)) {
         return ack({ error: 'bad-request' });
       }
-      const roomId = rooms.create(socket.data.user, color, minutes);
-      ack(roomId ? { roomId } : { error: 'busy' });
+      ack(rooms.create(socket.data.user, color, minutes));
     });
 
     socket.on('join', (payload, ack) => {

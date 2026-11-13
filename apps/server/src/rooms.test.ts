@@ -1,6 +1,6 @@
-import { Chess } from 'chess.js';
+import { Chess, type Color } from 'chess.js';
 import { beforeEach, expect, test } from 'vitest';
-import { createRooms, timeoutResult, type Rooms } from './rooms.ts';
+import { createRooms, timeoutResult, type Rooms, type SeatPlayer } from './rooms.ts';
 
 const MINUTE = 60_000;
 const ANN = { id: 'ann-id', name: 'Ann', rating: 1500 };
@@ -14,16 +14,23 @@ beforeEach(() => {
   rooms = createRooms(() => time);
 });
 
+/** A five-minute room made by `player`. Fails the test if the server refuses it. */
+function newRoom(player: SeatPlayer, color: Color = 'w') {
+  const made = rooms.create(player, color, 5);
+  if ('error' in made) throw new Error(made.error);
+  return made.roomId;
+}
+
 /** A five-minute room with both players in it. Ann made it and plays the first army. */
 function started() {
-  const id = rooms.create(ANN, 'w', 5)!;
+  const id = newRoom(ANN, 'w');
   rooms.join(id, ANN);
   rooms.join(id, BOB);
   return id;
 }
 
 test('the creator holds the seat they chose and the guest gets the other', () => {
-  const id = rooms.create(ANN, 'b', 5)!;
+  const id = newRoom(ANN, 'b');
   expect(id).toMatch(/^[\w-]{8}$/);
   expect(rooms.join(id, ANN)).toEqual({ color: 'b' });
   expect(rooms.state(id, 'b')).toMatchObject({ roomId: id, color: 'b', started: false, moves: [], opponentOnline: false });
@@ -36,7 +43,7 @@ test('the creator holds the seat they chose and the guest gets the other', () =>
 });
 
 test('an empty seat has no player, and one account never takes both seats', () => {
-  const id = rooms.create(ANN, 'w', 5)!;
+  const id = newRoom(ANN, 'w');
   expect(rooms.state(id, 'w')?.players).toEqual({ w: { name: 'Ann', rating: 1500 }, b: null });
   expect(rooms.join(id, { ...ANN, name: 'Ann in another tab' })).toEqual({ color: 'w' });
   expect(rooms.state(id, 'w')?.started).toBe(false);
@@ -50,7 +57,7 @@ test('a third player is refused, and a returning player gets their own seat back
 });
 
 test('a move is refused before the guest arrives, out of turn, and when chess.js rejects it', () => {
-  const id = rooms.create(ANN, 'w', 5)!;
+  const id = newRoom(ANN, 'w');
   rooms.join(id, ANN);
   expect(rooms.move(id, 'w', 'e2e4')).toBe('not-started');
   rooms.join(id, BOB);
@@ -68,7 +75,7 @@ test('legal moves are recorded as chess.js spells them', () => {
 });
 
 test('no clock runs before the guest arrives', () => {
-  const id = rooms.create(ANN, 'w', 5)!;
+  const id = newRoom(ANN, 'w');
   rooms.join(id, ANN);
   time += MINUTE;
   expect(rooms.deadline(id)).toBeNull();
@@ -144,7 +151,7 @@ test('checkmate ends the game and stops the clocks', () => {
 });
 
 test('a finished game is recorded with its players, moves, result and times', () => {
-  const id = rooms.create(ANN, 'w', 5)!;
+  const id = newRoom(ANN, 'w');
   rooms.join(id, ANN);
   time += 5_000;
   rooms.join(id, BOB);
@@ -177,7 +184,7 @@ test('each player is told whether the other is connected', () => {
 test('a room nobody is connected to is deleted after ten minutes', () => {
   const live = started();
   const abandoned = started();
-  const neverEntered = rooms.create(ANN, 'w', 5)!;
+  const neverEntered = newRoom(ANN, 'w');
   rooms.leave(abandoned, 'w');
   rooms.leave(abandoned, 'b');
   time += 10 * MINUTE - 1;
@@ -189,6 +196,20 @@ test('a room nobody is connected to is deleted after ten minutes', () => {
 });
 
 test('the server holds at most a thousand rooms', () => {
-  for (let i = 0; i < 1000; i++) expect(rooms.create(ANN, 'w', 5)).not.toBeNull();
-  expect(rooms.create(ANN, 'w', 5)).toBeNull();
+  for (let i = 0; i < 1000; i++) expect(rooms.create({ ...CY, id: `player-${i}` }, 'w', 5)).toHaveProperty('roomId');
+  expect(rooms.create(ANN, 'w', 5)).toEqual({ error: 'busy' });
+});
+
+test('one player holds at most five unfinished rooms, and others can still make theirs', () => {
+  for (let i = 0; i < 5; i++) newRoom(ANN);
+  expect(rooms.create(ANN, 'w', 5)).toEqual({ error: 'too-many-rooms' });
+  expect(rooms.create(BOB, 'w', 5)).toHaveProperty('roomId');
+});
+
+test('a finished game frees its place among the five', () => {
+  const first = started();
+  for (let i = 0; i < 4; i++) newRoom(ANN);
+  expect(rooms.create(ANN, 'w', 5)).toEqual({ error: 'too-many-rooms' });
+  expect(rooms.resign(first, 'w')).toBeNull();
+  expect(rooms.create(ANN, 'w', 5)).toHaveProperty('roomId');
 });
