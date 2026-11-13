@@ -15,10 +15,11 @@ export interface Engine {
 
 const START_MS = 15_000; // a slow download of the 1.2 MB engine fits in this
 const MOVE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
+// Under /engine/, which next.config.ts caches as immutable: a new engine needs new file names (files.test.ts).
+export const ENGINE_SCRIPT = '/engine/stockfish-19-lite-single.js';
+export const ENGINE_WASM = '/engine/stockfish-19-lite-single.wasm'; // loaded by the worker from beside itself
 
-export function createEngine(
-  makeWorker: () => WorkerLike = () => new Worker('/engine/stockfish-19-lite-single.js'),
-): Engine {
+export function createEngine(makeWorker: () => WorkerLike = () => new Worker(ENGINE_SCRIPT)): Engine {
   let worker: WorkerLike | null = null;
   // One request at a time: the line it waits for, and how to settle it.
   let waiting: { prefix: string; resolve: (line: string) => void; reject: (error: Error) => void } | null = null;

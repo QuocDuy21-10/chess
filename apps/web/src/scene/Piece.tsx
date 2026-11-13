@@ -1,8 +1,8 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import type { Group, Vector3 } from 'three';
+import { Vector3, type Group } from 'three';
 import { squareToWorld } from '@/game/squares';
-import type { Piece } from '@/game/types';
+import type { Piece, Point } from '@/game/types';
 import { useGame } from '@/state/store';
 import { actors, type ActorHandle } from './actors';
 import { Bishop } from './pieces/Bishop';
@@ -33,7 +33,7 @@ export function PieceActor({ piece }: { piece: Piece }) {
       if (group.current) group.current.rotation.y = from + delta * t;
     });
   };
-  const angleTo = (point: Vector3) =>
+  const angleTo = (point: Point) =>
     Math.atan2(point.x - group.current.position.x, point.z - group.current.position.z);
 
   useEffect(() => {
@@ -41,13 +41,14 @@ export function PieceActor({ piece }: { piece: Piece }) {
       face: (point) => turnTo(angleTo(point)),
       async moveTo(point, mode) {
         const from = group.current.position.clone();
-        const distance = from.distanceTo(point);
+        const to = new Vector3(point.x, point.y, point.z);
+        const distance = from.distanceTo(to);
         if (distance < 1e-3) return;
         turnTo(angleTo(point));
         const ms = mode === 'hop' ? TIMING.hopMs : walkMs(distance);
         await tween(ms, (t) => {
           if (!group.current) return;
-          group.current.position.lerpVectors(from, point, t);
+          group.current.position.lerpVectors(from, to, t);
           if (mode === 'hop') group.current.position.y = Math.sin(t * Math.PI) * TIMING.hopHeight;
           rig.current?.stride(t === 1 ? 0 : t * distance);
         });
@@ -62,7 +63,8 @@ export function PieceActor({ piece }: { piece: Piece }) {
   // Snap to the square whenever it changes. After an animated move the piece is already there,
   // so this only shows on a new game or a resync. Then turn back to the home facing.
   useLayoutEffect(() => {
-    group.current.position.copy(squareToWorld(piece.square));
+    const { x, y, z } = squareToWorld(piece.square);
+    group.current.position.set(x, y, z);
     turnTo(home);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [piece.square]);

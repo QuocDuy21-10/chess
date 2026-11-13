@@ -1,8 +1,8 @@
-import type { Vector3 } from 'three';
 import type { SoundName } from '@/audio/audio';
 import { applyStep } from '@/game/position';
+import { distance, shortOf } from '@/game/points';
 import { squareToWorld } from '@/game/squares';
-import type { Piece, PieceId, Step } from '@/game/types';
+import type { Piece, PieceId, Point, Step } from '@/game/types';
 import type { ActorHandle } from './actors';
 import type { CameraRigHandle } from './cameraHandle';
 import { STAND_OFF, TIMING, walkMs } from './theme';
@@ -19,7 +19,7 @@ export interface SequencerDeps {
 
 /** Plays steps one after another. Each step's effect lands after its animation ends. */
 export async function runSteps(steps: Step[], deps: SequencerDeps): Promise<void> {
-  const offSquare = new Map<PieceId, Vector3>(); // where an attacker stands after a fight, short of its square
+  const offSquare = new Map<PieceId, Point>(); // where an attacker stands after a fight, short of its square
   for (const step of steps) {
     await animate(step, deps, offSquare);
     deps.setPieces(applyStep(deps.getPieces(), step));
@@ -31,21 +31,21 @@ const STEPS_PER_SQUARE = 2;
 /** Moves an actor and plays its footfalls, or its landing after a hop. */
 async function move(
   actor: ActorHandle | undefined,
-  from: Vector3,
-  to: Vector3,
+  from: Point,
+  to: Point,
   mode: 'walk' | 'hop',
   sound: SequencerDeps['sound'],
 ) {
   if (mode === 'walk') {
-    const distance = from.distanceTo(to);
-    const count = Math.max(1, Math.round(distance * STEPS_PER_SQUARE));
-    for (let i = 0; i < count; i++) sound?.('step', ((i + 0.5) / count) * walkMs(distance));
+    const length = distance(from, to);
+    const count = Math.max(1, Math.round(length * STEPS_PER_SQUARE));
+    for (let i = 0; i < count; i++) sound?.('step', ((i + 0.5) / count) * walkMs(length));
   }
   await actor?.moveTo(to, mode);
   if (mode === 'hop') sound?.('land');
 }
 
-async function animate(step: Step, deps: SequencerDeps, offSquare: Map<PieceId, Vector3>) {
+async function animate(step: Step, deps: SequencerDeps, offSquare: Map<PieceId, Point>) {
   const { actors, getPieces, wait = (ms) => tween(ms, () => {}), sound, camera } = deps;
   const squareOf = (id: PieceId) => getPieces().find((p) => p.id === id)?.square;
 
@@ -69,7 +69,7 @@ async function animate(step: Step, deps: SequencerDeps, offSquare: Map<PieceId, 
 
   const origin = squareToWorld(attackerPiece.square);
   const target = squareToWorld(defenderPiece.square);
-  const standOff = target.clone().add(origin.clone().sub(target).normalize().multiplyScalar(STAND_OFF));
+  const standOff = shortOf(target, origin, STAND_OFF);
 
   offSquare.set(step.attacker, standOff);
   void camera?.focus(origin, target); // glides in while the attacker approaches

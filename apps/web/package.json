@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "size": "node scripts/bundle-size.ts"
   },
   "dependencies": {
     "@chess/shared": "*",

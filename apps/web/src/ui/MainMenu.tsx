@@ -4,6 +4,7 @@ import { TIME_CONTROLS } from '@chess/shared/protocol';
 import { useEffect, useRef, useState } from 'react';
 import { useComputer } from '@/engine/computer';
 import { COMPUTER_TIMES, LEVELS } from '@/engine/levels';
+import { prefetchEngine } from '@/engine/prefetch';
 import { useAccount } from '@/net/account';
 import { useOnline } from '@/net/online';
 import { serverUrl } from '@/net/server';
@@ -124,7 +125,13 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
                 {t.twoPlayers}
               </button>
             )}
-            <button onClick={() => setPanel('computer')} className={secondary}>
+            <button
+              onClick={() => {
+                prefetchEngine();
+                setPanel('computer');
+              }}
+              className={secondary}
+            >
               {t.playComputer}
             </button>
             <button onClick={() => setPanel('online')} className={secondary}>

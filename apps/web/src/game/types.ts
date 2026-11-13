@@ -16,3 +16,10 @@ export type Step =
   | { kind: 'hop'; piece: PieceId; to: Square }
   | { kind: 'combat'; attacker: PieceId; defender: PieceId }
   | { kind: 'promote'; piece: PieceId; to: PromotionPiece };
+
+/** A point in the scene's world. Plain data, so code outside the 3D scene does not load three.js. */
+export interface Point {
+  x: number;
+  y: number;
+  z: number;
+}

@@ -116,14 +116,18 @@ so a restart or a new deploy ends every game in progress. Without Docker, run `n
 On Vercel, set the project's Root Directory to `apps/web`, and `NEXT_PUBLIC_SERVER_URL` to the server's
 public address.
 
+The site caches `/engine/*` for a year (the files' names carry Stockfish's version: a new engine needs new names,
+which `src/engine/files.test.ts` enforces) and `/audio/*` for a week.
+
 The project's own setup, a VPS deployed by GitHub Actions, is described below.
 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`:
 
-1. `check`: lint, typecheck, the tests against a Postgres service, the site's build, `shellcheck` on
-   `deploy/*.sh`, and `docker compose config` on `deploy/compose.yml`.
+1. `check`: lint, typecheck, the tests against a Postgres service, the site's build and its size against
+   `apps/web/bundle-budget.json` (`npm run size -w @chess/web` after a build; raise a budget only on purpose, in the
+   same pull request), `shellcheck` on `deploy/*.sh`, and `docker compose config` on `deploy/compose.yml`.
 2. `e2e`, one job per browser (Chromium, Firefox, WebKit) beside `check`: plays the production build against the
    real server and Postgres with Playwright: two players to checkmate, a move against the computer, the language
    setting, and an online game between two browsers. Any console error, CSP violation or missing WebGL fails it.

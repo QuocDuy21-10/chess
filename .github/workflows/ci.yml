@@ -53,6 +53,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Check the bundle against its budget
+        run: npm run size -w @chess/web
       - name: Check the deploy scripts
         run: shellcheck deploy/*.sh
       - name: Check the production compose file
