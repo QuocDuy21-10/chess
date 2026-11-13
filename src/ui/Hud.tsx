@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
-import { useGame } from '@/state/store';
+import { useOnline } from '@/net/online';
+import { TEAM } from '@/scene/theme';
+import { isLocked, useGame } from '@/state/store';
 import { resultText, useT } from './i18n';
 import { Modal } from './Modal';
 
@@ -16,10 +18,11 @@ const button =
  */
 export function Hud({ onPause }: { onPause: () => void }) {
   const t = useT();
+  const online = useGame((s) => s.seat !== null);
   const [drawer, setDrawer] = useState(false);
   const pause = (
     <button onClick={onPause} className={button}>
-      {t.pause}
+      {online ? t.menu : t.pause /* an online game cannot be paused: the clocks keep running */}
     </button>
   );
 
@@ -30,6 +33,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
         {pause}
       </div>
       <Status />
+      <Clocks />
       <div className="flex min-h-0 flex-1 flex-col gap-4 portrait:hidden">
         <MoveInput />
         <MoveList />
@@ -63,14 +67,24 @@ function Status() {
   const inCheck = useGame((s) => s.inCheck);
   const latest = useGame((s) => s.history.at(-1));
   const result = useGame((s) => s.result);
+  const seat = useGame((s) => s.seat);
+  const connected = useOnline((s) => s.connected);
+  const opponentOnline = useOnline((s) => s.opponentOnline);
   const mover = t.team[turn === 'w' ? 'b' : 'w']; // who made the latest move
   const outcome = result && resultText(t, result);
+  // Online, while the game is live: say so when either player has lost the server.
+  const trouble = !seat || result ? null : !connected ? t.reconnecting : !opponentOnline ? t.opponentOffline : null;
 
   return (
     <>
       <p className="portrait:min-w-0 portrait:flex-1 landscape:text-lg">
         {outcome ?? t.toMove(t.team[turn])}
         {!result && inCheck && <span className="ml-2 font-semibold text-red-400">{t.check}</span>}
+        {trouble && (
+          <span role="status" className="block text-sm text-amber-300">
+            {trouble}
+          </span>
+        )}
       </p>
       <p aria-live="polite" className="sr-only">
         {latest && t.played(mover, latest)} {outcome}
@@ -79,10 +93,52 @@ function Status() {
   );
 }
 
+/** Online only: both clocks. The server sends a time when something happens; in between, this counts down. */
+function Clocks() {
+  const t = useT();
+  const seat = useGame((s) => s.seat);
+  const clocks = useOnline((s) => s.clocks);
+  const clocksAt = useOnline((s) => s.clocksAt);
+  const running = useOnline((s) => s.running);
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => setNow(performance.now()), 250);
+    return () => clearInterval(timer);
+  }, [running]);
+  if (!seat) return null;
+
+  return (
+    <div className="flex flex-col gap-1 font-mono portrait:text-sm">
+      {(['w', 'b'] as const).map((color) => {
+        // `now` is older than `clocksAt` until the first tick after a message, hence the floor at zero
+        const elapsed = color === running ? Math.max(0, now - clocksAt) : 0;
+        const seconds = Math.ceil(Math.max(0, clocks[color] - elapsed) / 1000);
+        return (
+          <p
+            key={color}
+            data-running={color === running}
+            className="flex items-center gap-2 rounded px-2 data-[running=true]:bg-amber-600/40 landscape:py-1"
+          >
+            <span aria-hidden className="size-3 rounded-full" style={{ background: TEAM[color] }} />
+            <span className="flex-1 font-sans portrait:sr-only">
+              {t.team[color]}
+              {color === seat && ` (${t.you})`}
+            </span>
+            {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function UndoButton() {
   const t = useT();
   const undo = useGame((s) => s.undo);
   const possible = useGame((s) => (s.phase === 'idle' || s.phase === 'gameOver') && s.history.length > 0);
+  const online = useGame((s) => s.seat !== null);
+  if (online) return null; // a move made online cannot be taken back
   return (
     <button onClick={undo} disabled={!possible} className={button}>
       {t.undo}
@@ -93,14 +149,14 @@ function UndoButton() {
 function MoveInput() {
   const t = useT();
   const id = useId(); // the column and the drawer can both be in the page
-  const phase = useGame((s) => s.phase);
+  const locked = useGame((s) => s.phase !== 'idle' || isLocked(s)); // online: also when it is not this device's turn
   const submitText = useGame((s) => s.submitText);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (phase !== 'idle') return;
+    if (locked) return;
     if (submitText(text)) {
       setText('');
       setError('');
@@ -120,7 +176,7 @@ function MoveInput() {
           id={id}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          readOnly={phase !== 'idle'} // not disabled: that would drop keyboard focus after every move
+          readOnly={locked} // not disabled: that would drop keyboard focus after every move
           autoComplete="off"
           aria-describedby={error ? `${id}-error` : undefined}
           aria-invalid={error ? true : undefined}
@@ -128,7 +184,7 @@ function MoveInput() {
           className="min-h-11 min-w-0 flex-1 rounded-lg bg-stone-800 px-3 py-2 read-only:opacity-50"
         />
         <button
-          disabled={phase !== 'idle'}
+          disabled={locked}
           className="min-h-11 rounded-lg bg-amber-600 px-3 py-2 font-medium hover:bg-amber-500 disabled:opacity-50"
         >
           {t.move}
