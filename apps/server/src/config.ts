@@ -2,19 +2,28 @@
 export interface Config {
   port: number;
   origins: string[] | true; // the sites allowed to connect; true: any site
+  databaseUrl: string;
 }
 
 const DEFAULT_PORT = 3001;
 
 /**
- * Reads PORT, CLIENT_ORIGIN and NODE_ENV. Throws, naming the variable, when one is wrong, so a
+ * Reads PORT, CLIENT_ORIGIN, DATABASE_URL and NODE_ENV. Throws, naming the variable, when one is wrong, so a
  * misconfigured server stops at startup instead of refusing every player later.
  */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     port: readPort(env.PORT),
     origins: readOrigins(env.CLIENT_ORIGIN, env.NODE_ENV === 'production'),
+    databaseUrl: readDatabaseUrl(env.DATABASE_URL),
   };
+}
+
+function readDatabaseUrl(value: string | undefined): string {
+  if (!value || !/^postgres(ql)?:\/\//.test(value)) {
+    throw new Error('DATABASE_URL must be a Postgres URL such as postgres://user:password@host:5432/chess');
+  }
+  return value;
 }
 
 function readPort(value: string | undefined): number {

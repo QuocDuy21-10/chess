@@ -1,8 +1,19 @@
 import { expect, test } from 'vitest';
-import { loadConfig } from './config.ts';
+import { loadConfig as load } from './config.ts';
 
-test('port 3001 and any origin when nothing is set', () => {
-  expect(loadConfig({})).toEqual({ port: 3001, origins: true });
+const DATABASE_URL = 'postgres://chess:chess@localhost:5432/chess';
+/** Every test below but the DATABASE_URL one is about another variable: give it a valid one. */
+const loadConfig = (env: NodeJS.ProcessEnv) => load({ DATABASE_URL, ...env });
+
+test('port 3001 and any origin when nothing else is set', () => {
+  expect(loadConfig({})).toEqual({ port: 3001, origins: true, databaseUrl: DATABASE_URL });
+});
+
+test('DATABASE_URL is required and must be a Postgres URL', () => {
+  for (const bad of [undefined, '', 'mysql://localhost/chess', 'localhost:5432']) {
+    expect(() => load({ DATABASE_URL: bad }), String(bad)).toThrow('DATABASE_URL');
+  }
+  expect(load({ DATABASE_URL: 'postgresql://h/db' }).databaseUrl).toBe('postgresql://h/db');
 });
 
 test('PORT is read, and refused unless it is a whole number from 1 to 65535', () => {

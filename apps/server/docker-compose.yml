@@ -1,0 +1,15 @@
+# Postgres for development and tests: npm run db:up -w @chess/server
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: chess
+      POSTGRES_PASSWORD: chess
+      POSTGRES_DB: chess
+    ports:
+      - '127.0.0.1:5432:5432' # this machine only
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./docker/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+volumes:
+  postgres:
