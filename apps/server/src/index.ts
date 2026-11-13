@@ -36,6 +36,7 @@ const app = createApp({
   db,
   providers: createProviders(config.oauth, config.publicUrl),
   origins: config.origins,
+  trustProxy: config.trustProxy,
   webUrl: config.webUrl,
   secure: config.production,
 });

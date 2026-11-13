@@ -8,6 +8,7 @@ import type { Db } from './db.ts';
 import { attachGame, userRoom, type GameServer } from './game.ts';
 import { saveGame } from './games.ts';
 import { createHttpApp } from './http.ts';
+import { LIMITS, limiter, perIp, type Limits } from './limits.ts';
 import { log } from './log.ts';
 import type { Provider, ProviderName } from './providers.ts';
 import { createSessions } from './sessions.ts';
@@ -22,6 +23,8 @@ interface Options {
   secure?: boolean; // Secure cookies; true in production
   now?: () => number;
   timeControls?: number[]; // minutes; tests pass a very short one to watch a flag fall
+  trustProxy?: number; // proxies in front of the server; 0 in development
+  limits?: Partial<Limits>; // tests pass small ones
 }
 
 /** The game server: Express for HTTP, Socket.IO on the same port for the game. Call `listen` to start it. */
@@ -33,13 +36,31 @@ export function createApp({
   secure = false,
   now,
   timeControls = TIME_CONTROLS,
+  trustProxy = 0,
+  limits: overrides,
 }: Options) {
   const sessions = createSessions(db, now);
   // Signing out closes every game connection of that account; `io` exists by the time anyone signs out.
   const onLogout = (userId: string) => io.in(userRoom(userId)).disconnectSockets(true);
-  const auth = authRoutes({ db, sessions, providers, webUrl, secure, onLogout });
+  const limits = { ...LIMITS, ...overrides };
+  const auth = authRoutes({
+    db,
+    sessions,
+    providers,
+    webUrl,
+    secure,
+    onLogout,
+    limit: perIp(limiter('auth', limits.authPer10Minutes, 10 * 60)),
+  });
   // Socket.IO answers /socket.io/ on this server before Express sees the request.
-  const http = createServer(createHttpApp(origins, [auth, apiRoutes({ db, sessions })]));
+  const http = createServer(
+    createHttpApp({
+      origins,
+      routes: [auth, apiRoutes({ db, sessions })],
+      trustProxy,
+      limit: perIp(limiter('http', limits.httpPerMinute, 60)),
+    }),
+  );
   const io: GameServer = new Server(http, {
     cors: { origin: origins, credentials: true },
     maxHttpBufferSize: 10_000,

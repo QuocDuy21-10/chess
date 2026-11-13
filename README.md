@@ -68,6 +68,7 @@ in `apps/server/drizzle/`, and commit it with the change.
 | `NODE_ENV` | server | `production` when deployed. The Docker image sets it. |
 | `DATABASE_URL` | server | Required. `postgres://user:password@host:5432/chess`. |
 | `PUBLIC_URL` | server | The server's own origin, for the OAuth callback URLs. Required in production; unset: `http://localhost:<PORT>`. |
+| `TRUST_PROXY` | server | How many proxies stand in front of the server, so rate limits count the client's own address. Default 0; `deploy/compose.yml` sets 1 (Caddy). More than the real number lets a client choose its own address. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | server | A GitHub OAuth app. Set both or neither. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | server | A Google OAuth client. Set both or neither; at least one provider is required. |
 | `TEST_DATABASE_URL` | tests | The database the tests use and empty. |

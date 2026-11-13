@@ -3,6 +3,7 @@ import type { ProviderName } from './providers.ts';
 /** The server's settings, read from the environment. */
 export interface Config {
   port: number;
+  trustProxy: number; // proxies in front of the server (Caddy in production); 0: trust no X-Forwarded-For
   origins: string[] | true; // the sites allowed to connect; true: any site
   databaseUrl: string;
   production: boolean;
@@ -21,7 +22,7 @@ const DEFAULT_PORT = 3001;
 const DEV_WEB_URL = 'http://localhost:3000';
 
 /**
- * Reads PORT, CLIENT_ORIGIN, DATABASE_URL, PUBLIC_URL, GOOGLE_CLIENT_ID and _SECRET, GITHUB_CLIENT_ID and _SECRET, SENTRY_DSN,
+ * Reads PORT, TRUST_PROXY, CLIENT_ORIGIN, DATABASE_URL, PUBLIC_URL, GOOGLE_CLIENT_ID and _SECRET, GITHUB_CLIENT_ID and _SECRET, SENTRY_DSN,
  * and NODE_ENV. Throws, naming the variable, when one is wrong, so a misconfigured server stops at startup
  * instead of refusing every player later.
  */
@@ -31,6 +32,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const origins = readOrigins(env.CLIENT_ORIGIN, production);
   return {
     port,
+    trustProxy: readTrustProxy(env.TRUST_PROXY),
     origins,
     databaseUrl: readDatabaseUrl(env.DATABASE_URL),
     production,
@@ -81,6 +83,15 @@ function readPort(value: string | undefined): number {
     throw new Error(`PORT must be a whole number from 1 to 65535, not "${value}"`);
   }
   return port;
+}
+
+function readTrustProxy(value: string | undefined): number {
+  if (value === undefined || value === '') return 0;
+  const hops = Number(value);
+  if (!/^\d+$/.test(value) || hops > 10) {
+    throw new Error(`TRUST_PROXY must be the number of proxies in front of the server, 0 to 10, not "${value}"`);
+  }
+  return hops;
 }
 
 function readOrigins(value: string | undefined, production: boolean): string[] | true {
