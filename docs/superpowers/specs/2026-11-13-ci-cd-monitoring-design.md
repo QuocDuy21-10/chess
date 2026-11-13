@@ -66,6 +66,7 @@ apps/server/src/config.ts         reads SENTRY_DSN
 apps/server/Dockerfile            ARG GIT_SHA → ENV SENTRY_RELEASE
 apps/web/src/instrumentation-client.ts       new: Sentry.init in the browser
 apps/web/next.config.ts           wrapped in withSentryConfig
+apps/web/package.json             typecheck runs `next typegen` first (CI has no next-env.d.ts)
 .dockerignore                     also leaves out deploy/ and .github/
 README.md                         CI, VPS setup, backups and restore, monitoring
 ```
@@ -73,9 +74,10 @@ README.md                         CI, VPS setup, backups and restore, monitoring
 ## CI: `.github/workflows/ci.yml`
 
 Triggers: `pull_request`; `push` to `main`; `workflow_dispatch` with a required input `tag` (the 40-character
-SHA of an image already in GHCR). Default permissions `contents: read`. A newer run on the same ref cancels
-an older one (`concurrency: ci-${{ github.ref }}`), except the `deploy` job, which has its own group
-`deploy` with `cancel-in-progress: false`, so a deploy is never cut off halfway.
+SHA of an image already in GHCR). Default permissions `contents: read`. Runs share the group
+`ci-${{ github.ref }}`: on a pull request a newer run cancels the older one; on `main` runs queue instead, and
+the `deploy` job also has its own group `deploy` with `cancel-in-progress: false`, so a deploy is never cut off
+halfway.
 
 ### Job `check`
 
@@ -306,8 +308,8 @@ A new "Production" part replaces the Docker-only "Deploying" text where it overl
 - Rollback: run the workflow by hand with an earlier SHA; across a migration, restore too.
 - Backup and restore commands, and the privacy note on the dump.
 - The two monitors, and the Sentry variables on the VPS and on Vercel.
-- If it exists (see "To verify"), Vercel's setting that holds a production deployment until the GitHub
-  `check` job passes.
+- Vercel's Deployment Checks (project settings), which hold a production deployment until the GitHub `check`
+  job passes.
 
 ## Error handling
 
@@ -345,11 +347,10 @@ A new "Production" part replaces the Docker-only "Deploying" text where it overl
 ## To verify during implementation
 
 - The `deploy` job's `if:` runs on a dispatch even though `check` and `image` are skipped.
-- Next 16's `instrumentation-client.ts` location with a `src/` directory, and what `withSentryConfig` 11.x needs
-  when there is no server-side Sentry config (read `node_modules/next/dist/docs/` first, per `apps/web/AGENTS.md`).
+- What `withSentryConfig` 11.x does to a Turbopack build with no server-side Sentry config. (Checked: Next 16
+  runs `src/instrumentation-client.ts`; Vercel's setting is "Deployment Checks".)
 - `pg_dump --clean --if-exists` output restores into a database that already has the `public` and `drizzle`
   schemas without an error, inside `--single-transaction`.
-- That Vercel offers a setting to wait for GitHub checks before promoting to production, and its name.
 - `docker compose config` accepts the file with only dummy `IMAGE_TAG`, `POSTGRES_PASSWORD` and `API_DOMAIN`.
 
 ## Out of scope
