@@ -120,8 +120,9 @@ Gains Vitest (as a dev dependency, same major as the other workspaces) and `"tes
 
 - Every `GAMES` entry, typed through `submitText` with the animations awaited, keeps the view equal to chess.js
   after each move (`matchesBoard`) and ends with the catalog's result.
-- Every `REFUSALS` entry: `submitText(refused)` returns `false` and changes nothing, except the promotion one,
-  which opens the promotion chooser instead (the store's existing behaviour), and choosing a piece completes it.
+- Every `REFUSALS` entry: `submitText(refused)` returns `false` and changes nothing. (A typed `a7a8` matches no
+  move, since chess.js spells promotions `a7a8q`; the chooser opens only when a pawn is moved by clicking, which
+  `store.test.ts` already covers.)
 
 ### `apps/web` (`sequencer.test.ts`)
 
@@ -139,9 +140,9 @@ With the existing fake actors:
 
 ```
 e2e/
-  package.json            @chess/e2e: @playwright/test 1.64.1; scripts test, report
+  package.json            @chess/e2e: @playwright/test 1.64.1; scripts test (`node seed.ts && playwright test`), report
   playwright.config.ts
-  global-setup.ts         users, sessions, storage states
+  seed.ts                 users, sessions, storage states (run by Node before Playwright)
   fixtures.ts             the page-health fixture
   local.spec.ts
   computer.spec.ts
@@ -168,11 +169,13 @@ go in `.gitignore`.
     `NEXT_PUBLIC_SERVER_URL=http://localhost:3001` (CI builds it in a step; locally `npm run e2e` expects a build,
     and README says so). So S2's CSP and headers apply.
   - `reuseExistingServer` locally, not on CI.
-- `globalSetup: './global-setup.ts'`.
+- `storageState: '.auth/ann.json'` by default, so pages are signed in (a signed-out page's 401 from `/me` would
+  show up as a console error in Chromium); the online spec opens Bob's context with `.auth/bob.json`.
 
-### `global-setup.ts`
+### `seed.ts`
 
-Reads `TEST_DATABASE_URL`; empties the tables (the server's `truncate`); creates users "E2E Ann" and "E2E Bob";
+Run with Node (type stripping, like the server) before `playwright test`, so it can import the server's own
+TypeScript. Reads `TEST_DATABASE_URL`; empties the tables (the server's `truncate`); creates users "E2E Ann" and "E2E Bob";
 creates a session for each with the server's own `createSessions`; writes `e2e/.auth/ann.json` and
 `e2e/.auth/bob.json` (Playwright storage states holding the `sid` cookie for `localhost`). `e2e/.auth` is
 git-ignored.
@@ -195,10 +198,10 @@ English strings from `apps/web/src/ui/i18n.ts`.
 
 | Spec | Steps and checks |
 |---|---|
-| `local.spec.ts` | Start a two-player game; type f3, e5, g4, Qh4; the game-over dialog says "Checkmate — Black wins"; the move list holds 4 moves; Undo reopens the game (the dialog closes, 3 moves). |
+| `local.spec.ts` | Start a two-player game; type f3, e5, g4, Qh4; the game-over dialog says "Checkmate — Teal wins" (the armies are Amber and Teal); the move list holds 4 moves; Undo reopens the game (the dialog closes, 3 moves). |
 | `computer.spec.ts` | Play the computer at the lowest level; type e4; within 15 s the move list holds 2 moves (Stockfish's WASM ran in this browser). |
 | `settings.spec.ts` | Open Settings, choose Tiếng Việt; the menu shows Vietnamese; after a reload it still does. |
-| `online.spec.ts` | Ann (her storage state) opens Play online, creates a room and reads the invite link from the address; Bob (his storage state, a second context) opens it; each sees the other's name; Ann plays e4, Bob sees it and plays e5, Ann sees that; Bob resigns; Ann sees "Resignation — White wins"; Ann's Profile lists the game. |
+| `online.spec.ts` | Ann (her storage state) opens Play online, creates a room and reads the invite link from the address; Bob (his storage state, a second context) opens it; each sees the other's name; Ann plays e4, Bob sees it and plays e5, Ann sees that; Bob resigns; Ann sees "Resignation — Amber wins"; Ann's Profile lists the game. |
 
 ### CI (`.github/workflows/ci.yml`)
 
@@ -218,7 +221,7 @@ A new job `e2e`, skipped on `workflow_dispatch` like `check`:
   Playwright, and the job still passes.
 - The page-health fixture turns any console error, page error or CSP violation into a failure with the
   messages, so a browser-specific breakage cannot pass silently.
-- `global-setup.ts` fails the run with a clear message when `TEST_DATABASE_URL` is missing.
+- `seed.ts` fails the run with a clear message when `TEST_DATABASE_URL` is missing.
 
 ## Testing the tests
 
