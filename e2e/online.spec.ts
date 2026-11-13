@@ -18,9 +18,9 @@ test('two browsers play online through the real server, and the game reaches the
   await typeMove(bob, 'e5');
   await expect(page.getByRole('list', { name: 'Moves' }).first()).toContainText('e5');
 
-  await bob.getByRole('button', { name: 'Menu' }).click();
-  await bob.getByRole('button', { name: 'Resign' }).click();
-  await bob.getByRole('button', { name: 'Yes' }).click();
+  await bob.getByRole('button', { name: 'Menu' }).click({ force: true });
+  await bob.getByRole('button', { name: 'Resign' }).click({ force: true });
+  await bob.getByRole('button', { name: 'Yes' }).click({ force: true });
   await expect(page.getByRole('dialog', { name: 'Game over' })).toContainText('Resignation — Amber wins');
 
   // force: on a CI runner the software-rendered scene starves animation frames, so the stability check never passes

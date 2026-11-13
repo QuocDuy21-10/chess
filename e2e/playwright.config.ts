@@ -10,7 +10,7 @@ const ci = !!process.env.CI;
 
 export default defineConfig({
   testDir: '.',
-  timeout: 60_000, // a test may drive two browsers and a whole game
+  timeout: 120_000, // a test may drive two browsers and a whole game; CI draws the scene in software
   workers: 1, // one server and one database for every spec
   retries: ci ? 1 : 0,
   reporter: ci ? [['list'], ['html', { open: 'never' }]] : 'list',
