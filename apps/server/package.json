@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@chess/shared": "*",
+    "@sentry/node": "^11.12.0",
     "arctic": "^3.7.0",
     "chess.js": "^1.4.0",
     "cookie": "^2.0.2",
