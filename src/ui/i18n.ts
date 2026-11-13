@@ -75,6 +75,9 @@ const en = {
   sfxVolume: 'Effects volume',
   mute: 'Mute all sound',
   done: 'Done',
+  engineCredit: 'Computer opponent: Stockfish, GPL-3.0.',
+  engineLicense: 'Licence',
+  engineSource: 'Source code',
 };
 
 export type Strings = typeof en;
@@ -154,6 +157,9 @@ const vi: Strings = {
   sfxVolume: 'Âm lượng hiệu ứng',
   mute: 'Tắt toàn bộ âm thanh',
   done: 'Xong',
+  engineCredit: 'Máy chơi cờ: Stockfish, giấy phép GPL-3.0.',
+  engineLicense: 'Giấy phép',
+  engineSource: 'Mã nguồn',
 };
 
 const STRINGS = { en, vi };

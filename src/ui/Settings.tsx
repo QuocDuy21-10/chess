@@ -70,6 +70,23 @@ export function Settings({ onClose }: { onClose: () => void }) {
           {t.mute}
         </button>
 
+        {/* Stockfish is GPL-3.0: the game serves its licence and says where its source is. */}
+        <p className="text-xs text-stone-400">
+          {t.engineCredit}{' '}
+          <a href="/engine/Copying.txt" target="_blank" className="inline-flex min-h-11 items-center underline">
+            {t.engineLicense}
+          </a>
+          {' · '}
+          <a
+            href="https://github.com/nmrugg/stockfish.js"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center underline"
+          >
+            {t.engineSource}
+          </a>
+        </p>
+
         <button
           autoFocus
           onClick={onClose}
