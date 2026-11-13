@@ -1,6 +1,7 @@
 import { createApp } from './app.ts';
 import { loadConfig, type Config } from './config.ts';
 import { connect, migrate } from './db.ts';
+import { createProviders } from './providers.ts';
 
 // The only file with side effects on the process: environment, port, signals. See config.ts for the variables.
 
@@ -19,11 +20,17 @@ try {
   fail(error);
 }
 
-const { pool } = connect(config.databaseUrl);
+const { pool, db } = connect(config.databaseUrl);
 // An unreachable database stops the server here; the host restarts it. ECONNREFUSED comes with an empty message.
 await migrate(pool).catch((error) => fail(`Cannot migrate the database: ${error.message || error.code}`));
 
-const app = createApp({ origins: config.origins });
+const app = createApp({
+  db,
+  providers: createProviders(config.oauth, config.publicUrl),
+  origins: config.origins,
+  webUrl: config.webUrl,
+  secure: config.production,
+});
 const port = await app.listen(config.port).catch(fail);
 console.log(`Game server listening on port ${port}`);
 

@@ -1,7 +1,8 @@
 import type { ClientEvents, CreateAck, JoinAck, MoveAck, RoomState, ServerEvents } from '@chess/shared/protocol';
 import { io, type Socket } from 'socket.io-client';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeEach, expect, test } from 'vitest';
 import { createApp } from './app.ts';
+import { connectTest } from './test-db.ts';
 
 // The real server on a free port, talked to by real clients.
 
@@ -14,12 +15,14 @@ let app: ReturnType<typeof createApp>;
 let port: number;
 let skew: number; // milliseconds added to the server's clock
 const clients: Client[] = [];
+const { pool, db } = connectTest();
 
 beforeEach(async () => {
   skew = 0;
-  app = createApp({ now: () => Date.now() + skew, timeControls: [5, SHORT] });
+  app = createApp({ db, providers: {}, now: () => Date.now() + skew, timeControls: [5, SHORT] });
   port = await app.listen(0);
 });
+afterAll(() => pool.end());
 
 afterEach(async () => {
   for (const client of clients.splice(0)) client.disconnect();
@@ -159,7 +162,7 @@ test('HTTP answers carry the security headers and do not name Express', async ()
 });
 
 test('listening on a port that is taken fails instead of hanging', async () => {
-  const second = createApp();
+  const second = createApp({ db, providers: {} });
   await expect(second.listen(port)).rejects.toThrow('EADDRINUSE');
   await second.close();
 });

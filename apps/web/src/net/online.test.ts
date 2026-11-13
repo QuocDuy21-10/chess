@@ -1,7 +1,8 @@
 import { createApp } from '@chess/server/app';
+import { connectTest } from '@chess/server/test-db';
 import type { ClientEvents, CreateAck, RoomState, ServerEvents } from '@chess/shared/protocol';
 import { io, type Socket } from 'socket.io-client';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { useGame } from '@/state/store';
 import { useOnline } from './online';
 
@@ -18,10 +19,12 @@ let app: ReturnType<typeof createApp>;
 let port: number;
 let skew: number; // milliseconds added to the server's clock
 let bob: Client;
+const { pool, db } = connectTest();
+afterAll(() => pool.end());
 
 beforeEach(async () => {
   skew = 0;
-  app = createApp({ now: () => Date.now() + skew });
+  app = createApp({ db, providers: {}, now: () => Date.now() + skew });
   port = await app.listen(0);
   stored.clear();
   replaceState.mockClear();
