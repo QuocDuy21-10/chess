@@ -1,11 +1,11 @@
+import { gameResult, type Result } from '@chess/shared/result';
 import { Chess, type Color, type Move, type Square } from 'chess.js';
 import { create } from 'zustand';
 import { duck, fadeMusic, play } from '@/audio/audio';
 import { planMove } from '@/game/planMove';
 import { applyStep, matchesBoard, piecesFromBoard } from '@/game/position';
-import { gameResult } from '@/game/result';
 import { squareToWorld } from '@/game/squares';
-import type { Piece, PromotionPiece, Result } from '@/game/types';
+import type { Piece, PromotionPiece } from '@/game/types';
 import { actors } from '@/scene/actors';
 import { cameraRig } from '@/scene/cameraHandle';
 import { runSteps } from '@/scene/sequencer';

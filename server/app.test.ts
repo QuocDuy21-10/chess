@@ -1,6 +1,6 @@
+import type { ClientEvents, CreateAck, JoinAck, MoveAck, RoomState, ServerEvents } from '@chess/shared/protocol';
 import { io, type Socket } from 'socket.io-client';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import type { ClientEvents, CreateAck, JoinAck, MoveAck, RoomState, ServerEvents } from '../src/net/protocol.ts';
 import { createApp } from './app.ts';
 
 // The real server on a free port, talked to by real clients.

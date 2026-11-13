@@ -1,8 +1,8 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { TIME_CONTROLS, type ClientEvents, type ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import { Server, type Socket } from 'socket.io';
-import { TIME_CONTROLS, type ClientEvents, type ServerEvents } from '../src/net/protocol.ts';
 import { createRooms } from './rooms.ts';
 
 // What a well-formed request looks like. Nothing a client sends is used before it passes one of these.

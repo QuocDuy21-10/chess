@@ -1,8 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import type { MoveError, RoomState } from '@chess/shared/protocol';
+import { gameResult, type Result } from '@chess/shared/result';
 import { Chess, type Color } from 'chess.js';
-import { gameResult } from '../src/game/result.ts';
-import type { Result } from '../src/game/types.ts';
-import type { MoveError, RoomState } from '../src/net/protocol.ts';
 
 const MAX_ROOMS = 1000;
 const IDLE_MS = 10 * 60_000; // how long a room lives with nobody connected to it

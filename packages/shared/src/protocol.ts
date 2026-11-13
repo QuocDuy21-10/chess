@@ -1,5 +1,5 @@
 import type { Color } from 'chess.js';
-import type { Result } from '../game/types';
+import type { Result } from './result.ts';
 
 // Everything the browser and the game server say to each other. Both ends import this file.
 

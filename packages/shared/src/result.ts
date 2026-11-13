@@ -1,5 +1,9 @@
-import type { Chess } from 'chess.js';
-import type { Result } from './types';
+import type { Chess, Color } from 'chess.js';
+
+/** How a game ended. The interface turns it into words in the player's language. */
+export type Result =
+  | { reason: 'checkmate' | 'timeout' | 'resign'; winner: Color }
+  | { reason: 'stalemate' | 'insufficient' | 'threefold' | 'fifty' };
 
 /** How the position on the board ended the game, or null while it goes on. */
 export function gameResult(chess: Chess): Result | null {

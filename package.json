@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "server": "node --watch server/index.ts",
@@ -12,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@chess/shared": "*",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "chess.js": "^1.4.0",

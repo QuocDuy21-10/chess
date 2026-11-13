@@ -1,9 +1,9 @@
+import type { ClientEvents, RoomState, ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
 import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
-import type { ClientEvents, RoomState, ServerEvents } from './protocol';
 
 // The connection to the game server. The interface reads `useOnline`; the board is driven through `useGame`.
 

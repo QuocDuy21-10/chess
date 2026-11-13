@@ -1,4 +1,4 @@
-import { TIME_CONTROLS } from '@/net/protocol';
+import { TIME_CONTROLS } from '@chess/shared/protocol';
 
 export const LEVELS = ['beginner', 'easy', 'medium', 'hard'] as const;
 export type Level = (typeof LEVELS)[number];

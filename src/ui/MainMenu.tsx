@@ -1,10 +1,10 @@
 'use client';
 
+import { TIME_CONTROLS } from '@chess/shared/protocol';
 import { useRef, useState } from 'react';
 import { useComputer } from '@/engine/computer';
 import { COMPUTER_TIMES, LEVELS } from '@/engine/levels';
 import { useOnline } from '@/net/online';
-import { TIME_CONTROLS } from '@/net/protocol';
 import { TEAM } from '@/scene/theme';
 import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';

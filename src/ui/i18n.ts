@@ -1,4 +1,4 @@
-import type { Result } from '@/game/types';
+import type { Result } from '@chess/shared/result';
 import { useSettings } from '@/state/settings';
 
 const en = {
