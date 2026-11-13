@@ -1,5 +1,7 @@
-import type { Color } from 'chess.js';
+import { GAMES, playMoves, REFUSALS } from '@chess/shared/testing';
+import { Chess, type Color } from 'chess.js';
 import { beforeEach, expect, test, vi } from 'vitest';
+import { matchesBoard } from '@/game/position';
 import { moveList, pliesToUndo, useGame } from './store';
 
 const game = () => useGame.getState();
@@ -326,4 +328,21 @@ test('against the computer, undo after the player mates the machine takes back t
   game().undo();
   expect(game()).toMatchObject({ phase: 'idle', turn: 'w', result: null });
   expect(game().history).toHaveLength(6);
+});
+
+test.each(GAMES)('$name typed into the store keeps the view equal to chess.js and ends as the catalog says', async ({ moves, result }) => {
+  const chess = new Chess();
+  for (const move of moves) {
+    await play(move);
+    playMoves(chess, [move]);
+    expect(matchesBoard(game().pieces, chess), move).toBe(true);
+  }
+  expect(game().result).toEqual(result);
+});
+
+test.each(REFUSALS)('$name is refused when typed, and changes nothing', async ({ moves, refused }) => {
+  await play(...moves);
+  expect(game().submitText(refused)).toBe(false); // a bare g7g8 matches no move: chess.js spells it g7g8q
+  expect(game().history).toHaveLength(moves.length);
+  expect(game().phase).toBe('idle');
 });
