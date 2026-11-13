@@ -157,3 +157,9 @@ test('HTTP answers carry the security headers and do not name Express', async ()
   expect(headers.get('x-content-type-options')).toBe('nosniff');
   expect(headers.get('x-powered-by')).toBeNull();
 });
+
+test('listening on a port that is taken fails instead of hanging', async () => {
+  const second = createApp();
+  await expect(second.listen(port)).rejects.toThrow('EADDRINUSE');
+  await second.close();
+});
