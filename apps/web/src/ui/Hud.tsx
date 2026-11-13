@@ -123,6 +123,7 @@ function Clocks() {
         const elapsed = color === running ? Math.max(0, now - clocksAt) : 0;
         const seconds = Math.ceil(Math.max(0, clocks[color] - elapsed) / 1000);
         const who = color === seat ? t.you : mode === 'computer' ? t.computer : null;
+        const player = mode === 'online' ? online.players[color] : null; // online: the account in that seat
         return (
           <p
             key={color}
@@ -131,7 +132,7 @@ function Clocks() {
           >
             <span aria-hidden className="size-3 rounded-full" style={{ background: TEAM[color] }} />
             <span className="flex-1 font-sans portrait:sr-only">
-              {t.team[color]}
+              {player ? `${player.name} · ${player.rating}` : t.team[color]}
               {who && ` (${who})`}
             </span>
             {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}

@@ -1,14 +1,17 @@
 'use client';
 
 import { TIME_CONTROLS } from '@chess/shared/protocol';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useComputer } from '@/engine/computer';
 import { COMPUTER_TIMES, LEVELS } from '@/engine/levels';
+import { useAccount } from '@/net/account';
 import { useOnline } from '@/net/online';
+import { serverUrl } from '@/net/server';
 import { TEAM } from '@/scene/theme';
 import { useSettings } from '@/state/settings';
 import { useGame } from '@/state/store';
 import { useT } from './i18n';
+import { ProfilePanel } from './Profile';
 
 const primary = 'min-h-11 rounded-lg bg-amber-600 px-4 py-2 font-medium hover:bg-amber-500 disabled:opacity-50';
 const secondary = 'min-h-11 rounded-lg border border-stone-600 px-4 py-2 hover:bg-stone-800 disabled:opacity-50';
@@ -28,12 +31,15 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
   const newGame = useGame((s) => s.newGame);
   const status = useOnline((s) => s.status);
   const failed = useOnline((s) => s.error !== null);
-  const [panel, setPanel] = useState<'main' | 'online' | 'computer'>('main');
+  const [panel, setPanel] = useState<'main' | 'online' | 'computer' | 'profile'>('main');
+  // Each time the menu opens: the rating may have moved since.
+  useEffect(() => void useAccount.getState().load(), []);
+  const profile = panel === 'profile' && status === 'off';
   // The online panel also shows while a room is being set up, and to say why the last one ended.
-  const online = panel === 'online' || status !== 'off' || failed;
+  const online = !profile && (panel === 'online' || status !== 'off' || failed);
   // The computer panel also shows to say why the last game against the computer ended.
-  const computer = !online && (panel === 'computer' || computerFailed);
-  const mode = online ? t.playOnline : computer || computerOn ? t.playComputer : t.twoPlayers;
+  const computer = !online && !profile && (panel === 'computer' || computerFailed);
+  const mode = online || profile ? t.playOnline : computer || computerOn ? t.playComputer : t.twoPlayers;
 
   /** A new game in the current mode. Also plays the fade from black and the camera descent. */
   function again() {
@@ -63,7 +69,7 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
         </p>
 
         {/* Once a room exists the seat is fixed, so the choice is hidden. */}
-        {status === 'off' && (
+        {status === 'off' && !profile && (
           <div role="group" aria-labelledby="side-label" className="flex flex-col gap-2">
             <span id="side-label" className="text-sm text-stone-300">
               {t.sideLabel}
@@ -85,8 +91,16 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
           </div>
         )}
 
-        {online ? (
-          <OnlinePanel onBack={back} />
+        {profile ? (
+          <ProfilePanel onBack={() => setPanel('online')} />
+        ) : online ? (
+          <OnlinePanel
+            onBack={back}
+            onProfile={() => {
+              useOnline.setState({ error: null });
+              setPanel('profile');
+            }}
+          />
         ) : computer ? (
           <ComputerPanel onBack={back} onPlay={onPlay} />
         ) : (
@@ -126,9 +140,14 @@ export function MainMenu({ onPlay, onSettings }: { onPlay: () => void; onSetting
   );
 }
 
-/** Choosing a time and creating a room, then waiting in it with the invite link. */
-function OnlinePanel({ onBack }: { onBack: () => void }) {
+/** Signing in; then choosing a time and creating a room, then waiting in it with the invite link. */
+function OnlinePanel({ onBack, onProfile }: { onBack: () => void; onProfile: () => void }) {
   const t = useT();
+  const account = useAccount((s) => s.status);
+  const user = useAccount((s) => s.user);
+  const providers = useAccount((s) => s.providers);
+  const loginFailed = useAccount((s) => s.loginFailed);
+  const logout = useAccount((s) => s.logout);
   const status = useOnline((s) => s.status);
   const roomId = useOnline((s) => s.roomId);
   const error = useOnline((s) => s.error);
@@ -187,9 +206,58 @@ function OnlinePanel({ onBack }: { onBack: () => void }) {
     );
   }
 
+  if (account !== 'signed-in' || !user) {
+    // An invite link's ?room= rides along, so the sign-in comes back to the same room.
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return (
+      <>
+        {account === 'loading' && (
+          <p role="status" className="text-center text-stone-300">
+            {t.loadingAccount}
+          </p>
+        )}
+        {account === 'unreachable' && (
+          <p role="alert" className="text-sm text-red-400">
+            {t.onlineError.unreachable}
+          </p>
+        )}
+        {account === 'signed-out' && (
+          <>
+            <p role={loginFailed ? 'alert' : undefined} className={`text-sm ${loginFailed ? 'text-red-400' : 'text-stone-300'}`}>
+              {loginFailed ? t.loginFailed : t.onlineError['signed-out']}
+            </p>
+            {providers.map((name, index) => (
+              <a
+                key={name}
+                autoFocus={index === 0}
+                href={`${serverUrl()}/auth/${name}?returnTo=${returnTo}`}
+                className={`${index === 0 ? primary : secondary} flex items-center justify-center`}
+              >
+                {t.signInWith(t.provider[name] ?? name)}
+              </a>
+            ))}
+          </>
+        )}
+        <button autoFocus={account !== 'signed-out'} onClick={onBack} className={secondary}>
+          {t.back}
+        </button>
+      </>
+    );
+  }
+
   return (
     <>
-      {error && (
+      <div className="flex items-center gap-3">
+        {user.avatar && (
+          // eslint-disable-next-line @next/next/no-img-element -- any provider's host; next/image would need each one listed
+          <img src={user.avatar} alt="" referrerPolicy="no-referrer" className="size-10 rounded-full" />
+        )}
+        <p className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{user.name}</span>
+          <span className="block text-sm text-stone-300">{t.rating(user.rating)}</span>
+        </p>
+      </div>
+      {error && error !== 'signed-out' && (
         <p role="alert" className="text-sm text-red-400">
           {t.onlineError[error]}
         </p>
@@ -222,6 +290,14 @@ function OnlinePanel({ onBack }: { onBack: () => void }) {
       >
         {t.createRoom}
       </button>
+      <div className="flex gap-2">
+        <button onClick={onProfile} className={`${secondary} flex-1`}>
+          {t.profile}
+        </button>
+        <button onClick={() => void logout()} className={`${secondary} flex-1`}>
+          {t.signOut}
+        </button>
+      </div>
       <button onClick={onBack} className={secondary}>
         {t.back}
       </button>
