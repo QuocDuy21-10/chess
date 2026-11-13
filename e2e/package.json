@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --env-file-if-exists=../apps/server/.env seed.ts && playwright test",
+    "e2e": "node --env-file-if-exists=../apps/server/.env seed.ts && playwright test",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit"
   },
