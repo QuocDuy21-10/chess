@@ -2,7 +2,7 @@ import type { ClientEvents, ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import type { Server, Socket } from 'socket.io';
 import { readCookie, SID } from './cookies.ts';
-import { createRooms, type SeatPlayer } from './rooms.ts';
+import { createRooms, type GameRecord, type SeatPlayer } from './rooms.ts';
 import type { Sessions } from './sessions.ts';
 
 // What a well-formed request looks like. Nothing a client sends is used before it passes one of these.
@@ -23,6 +23,7 @@ interface Options {
   sessions: Sessions;
   now?: () => number;
   timeControls: number[]; // minutes
+  onGameOver?: (game: GameRecord) => void; // once per game, after both players have been told
 }
 
 /** The Socket.IO room every connection of one account is in, so signing out can close them all. */
@@ -32,8 +33,9 @@ const matches = (value: unknown, pattern: RegExp): value is string =>
   typeof value === 'string' && pattern.test(value);
 
 /** Puts the rooms behind `io`: answers every game event and keeps the flag timers. Call `close` to stop the timers. */
-export function attachGame(io: GameServer, { sessions, now, timeControls }: Options) {
+export function attachGame(io: GameServer, { sessions, now, timeControls, onGameOver }: Options) {
   const rooms = createRooms(now);
+  const reported = new Set<string>(); // rooms whose finished game has gone to onGameOver
   const seated = new Map<string, GameSocket>(); // "roomId:color" → the connection in that seat
   const flags = new Map<string, NodeJS.Timeout>(); // roomId → the timer that ends the game on time
 
@@ -42,6 +44,12 @@ export function attachGame(io: GameServer, { sessions, now, timeControls }: Opti
     for (const color of ['w', 'b'] as const) {
       const state = rooms.state(roomId, color);
       if (state) seated.get(`${roomId}:${color}`)?.emit('state', state);
+    }
+    // A result reaches this point once, from a move, a resignation or the flag timer, whichever ended the game.
+    const record = reported.has(roomId) ? null : rooms.record(roomId);
+    if (record) {
+      reported.add(roomId);
+      onGameOver?.(record);
     }
     clearTimeout(flags.get(roomId));
     flags.delete(roomId);
@@ -140,6 +148,7 @@ export function attachGame(io: GameServer, { sessions, now, timeControls }: Opti
     for (const roomId of rooms.sweep()) {
       clearTimeout(flags.get(roomId));
       flags.delete(roomId);
+      reported.delete(roomId);
     }
   }, SWEEP_MS);
 

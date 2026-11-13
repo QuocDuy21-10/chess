@@ -179,6 +179,39 @@ test('resigning ends the game for both players', async () => {
   expect(seenByAnn.result).toEqual({ reason: 'resign', winner: 'w' });
 });
 
+/** Polls until `check` passes: games are saved after both players are told. */
+async function eventually(check: () => Promise<void>) {
+  for (let tries = 0; ; tries++) {
+    try {
+      return await check();
+    } catch (error) {
+      if (tries > 100) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+}
+
+test('a checkmate is saved once, and moves both ratings', async () => {
+  const { ann, bob } = await startGame();
+  for (const [player, text] of [[ann, 'f2f3'], [bob, 'e7e5'], [ann, 'g2g4']] as const) {
+    await Promise.all([move(player, text), nextState(ann)]);
+  }
+  const [, over] = await Promise.all([move(bob, 'd8h4'), nextState(ann)]);
+  expect(over.result).toEqual({ reason: 'checkmate', winner: 'b' });
+  await expect(move(ann, 'e2e4')).resolves.toEqual({ error: 'over' }); // broadcasts again: must not save twice
+  await eventually(async () => {
+    const { rows } = await pool.query('SELECT winner, reason, moves, white_delta, black_delta FROM games');
+    expect(rows).toEqual([
+      { winner: 'b', reason: 'checkmate', moves: ['f2f3', 'e7e5', 'g2g4', 'd8h4'], white_delta: -13, black_delta: 13 }, // 40 × 0.334: Bob was rated higher
+    ]);
+  });
+  const { rows } = await pool.query('SELECT display_name, rating, games_played FROM users ORDER BY display_name');
+  expect(rows.slice(0, 2)).toEqual([
+    { display_name: 'Ann', rating: 1487, games_played: 1 },
+    { display_name: 'Bob', rating: 1633, games_played: 1 },
+  ]);
+});
+
 test('the health check answers, and any other path is a JSON 404', async () => {
   const health = await fetch(`http://localhost:${port}/health`);
   expect(health.status).toBe(200);

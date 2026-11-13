@@ -143,6 +143,28 @@ test('checkmate ends the game and stops the clocks', () => {
   expect(rooms.deadline(id)).toBeNull();
 });
 
+test('a finished game is recorded with its players, moves, result and times', () => {
+  const id = rooms.create(ANN, 'w', 5)!;
+  rooms.join(id, ANN);
+  time += 5_000;
+  rooms.join(id, BOB);
+  rooms.move(id, 'w', 'e2e4');
+  expect(rooms.record(id)).toBeNull(); // still going
+  time += 2_000;
+  rooms.resign(id, 'b');
+  expect(rooms.record(id)).toEqual({
+    roomId: id,
+    white: ANN,
+    black: BOB,
+    minutes: 5,
+    moves: ['e2e4'],
+    result: { reason: 'resign', winner: 'w' },
+    startedAt: 1_005_000,
+    endedAt: 1_007_000,
+  });
+  expect(rooms.record('nowhere1')).toBeNull();
+});
+
 test('each player is told whether the other is connected', () => {
   const id = started();
   rooms.leave(id, 'b');

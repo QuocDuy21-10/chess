@@ -6,6 +6,7 @@ import { apiRoutes } from './api.ts';
 import { authRoutes } from './auth.ts';
 import type { Db } from './db.ts';
 import { attachGame, userRoom, type GameServer } from './game.ts';
+import { saveGame } from './games.ts';
 import { createHttpApp } from './http.ts';
 import type { Provider, ProviderName } from './providers.ts';
 import { createSessions } from './sessions.ts';
@@ -42,7 +43,19 @@ export function createApp({
     cors: { origin: origins, credentials: true },
     maxHttpBufferSize: 10_000,
   });
-  const game = attachGame(io, { sessions, now, timeControls });
+  const saving = new Set<Promise<void>>(); // games being written; close() waits for them
+  const game = attachGame(io, {
+    sessions,
+    now,
+    timeControls,
+    // Not awaited by the game: both players already have the result, whatever the database does.
+    onGameOver(record) {
+      const write = saveGame(db, record)
+        .catch((error) => console.error(`Could not save the game in room ${record.roomId}:`, error))
+        .finally(() => saving.delete(write));
+      saving.add(write);
+    },
+  });
   const sweeper = setInterval(() => {
     sessions.sweep().catch((error) => console.error('Session sweep failed:', error));
   }, SESSION_SWEEP_MS);
@@ -59,11 +72,15 @@ export function createApp({
           resolve((http.address() as AddressInfo).port);
         });
       }),
-    /** Stops the timers and closes every connection and the HTTP server. The database pool is the caller's. */
-    close() {
+    /**
+     * Stops the timers, closes every connection and the HTTP server, and waits for games still being saved.
+     * The database pool is the caller's, to end after this.
+     */
+    async close() {
       clearInterval(sweeper);
       game.close();
-      return io.close();
+      await io.close();
+      await Promise.all(saving);
     },
   };
 }

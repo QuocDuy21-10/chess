@@ -11,6 +11,18 @@ export interface SeatPlayer extends Player {
   id: string;
 }
 
+/** A finished game, as it is saved. Times are milliseconds since the epoch. */
+export interface GameRecord {
+  roomId: string;
+  white: SeatPlayer;
+  black: SeatPlayer;
+  minutes: number;
+  moves: string[];
+  result: Result;
+  startedAt: number;
+  endedAt: number;
+}
+
 interface Room {
   chess: Chess; // the position the server trusts
   moves: string[]; // coordinate form, as chess.js spells them
@@ -20,6 +32,8 @@ interface Room {
   since: number | null; // when the running clock started; null while no clock runs
   result: Result | null;
   emptySince: number | null; // when the last player disconnected; null while someone is connected
+  minutes: number;
+  startedAt: number | null; // when the second player arrived
 }
 
 const COLORS: Color[] = ['w', 'b'];
@@ -79,6 +93,8 @@ export function createRooms(now: () => number = Date.now) {
         since: null,
         result: null,
         emptySince: now(),
+        minutes,
+        startedAt: null,
       });
       return id;
     },
@@ -95,7 +111,7 @@ export function createRooms(now: () => number = Date.now) {
         color = COLORS.find((c) => room.seats[c] === null);
         if (!color) return { error: 'full' };
         room.seats[color] = player;
-        room.since = now(); // the second player has arrived: the first army's clock starts
+        room.since = room.startedAt = now(); // the second player has arrived: the first army's clock starts
       }
       room.online[color] = true;
       room.emptySince = null;
@@ -173,6 +189,23 @@ export function createRooms(now: () => number = Date.now) {
         result: room.result,
         opponentOnline: room.online[other(color)],
         players: { w: shown(room.seats.w), b: shown(room.seats.b) },
+      };
+    },
+
+    /** The finished game in this room, ended now, or null while it goes on or when the room is gone. */
+    record(roomId: string): GameRecord | null {
+      const room = rooms.get(roomId);
+      const { w, b } = room?.seats ?? {};
+      if (!room?.result || !w || !b || room.startedAt === null) return null;
+      return {
+        roomId,
+        white: w,
+        black: b,
+        minutes: room.minutes,
+        moves: [...room.moves],
+        result: room.result,
+        startedAt: room.startedAt,
+        endedAt: now(),
       };
     },
 
