@@ -1,0 +1,11 @@
+# Only the server's image is built from here. Keep the context small and free of local files.
+**/node_modules
+**/.next
+.git
+.vitest
+docs
+*.md
+*.jpeg
+apps/web/*
+!apps/web/package.json
+apps/server/src/**/*.test.ts
