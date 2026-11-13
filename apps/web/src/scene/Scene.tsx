@@ -1,5 +1,6 @@
 'use client';
 
+import { useGLTF } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useState } from 'react';
 import { useSettings } from '@/state/settings';
@@ -9,8 +10,12 @@ import { Board } from './Board';
 import { CameraRig } from './CameraRig';
 import { Courtyard } from './Courtyard';
 import { PieceActor } from './Piece';
+import { MODELS } from './pieces/models';
 import { PALETTE } from './theme';
 import { tickTweens } from './tween';
+
+// Fetched as soon as the scene's code loads, so the pieces swap during the opening camera descent.
+for (const entry of Object.values(MODELS)) useGLTF.preload(entry.url, false, true);
 
 function TweenTicker() {
   useFrame((_, delta) => tickTweens(delta * 1000));
