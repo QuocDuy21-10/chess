@@ -9,6 +9,7 @@ export interface Config {
   publicUrl: string; // this server's own origin, for the OAuth callback URLs
   webUrl: string; // where a sign-in sends the browser back to
   oauth: Partial<Record<ProviderName, OAuthApp>>; // only the providers that are configured
+  sentryDsn?: string; // unset: no error reports
 }
 
 export interface OAuthApp {
@@ -20,7 +21,7 @@ const DEFAULT_PORT = 3001;
 const DEV_WEB_URL = 'http://localhost:3000';
 
 /**
- * Reads PORT, CLIENT_ORIGIN, DATABASE_URL, PUBLIC_URL, GOOGLE_CLIENT_ID and _SECRET, GITHUB_CLIENT_ID and _SECRET,
+ * Reads PORT, CLIENT_ORIGIN, DATABASE_URL, PUBLIC_URL, GOOGLE_CLIENT_ID and _SECRET, GITHUB_CLIENT_ID and _SECRET, SENTRY_DSN,
  * and NODE_ENV. Throws, naming the variable, when one is wrong, so a misconfigured server stops at startup
  * instead of refusing every player later.
  */
@@ -36,6 +37,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     publicUrl: readPublicUrl(env.PUBLIC_URL, production, port),
     webUrl: origins === true ? DEV_WEB_URL : origins[0],
     oauth: readOAuth(env),
+    sentryDsn: env.SENTRY_DSN || undefined,
   };
 }
 

@@ -76,3 +76,10 @@ test('each OAuth app needs its id and secret together, and at least one app is n
     google: { clientId: 'g-id', clientSecret: 'g-secret' },
   });
 });
+
+test('SENTRY_DSN is optional: unset or empty turns Sentry off', () => {
+  expect(loadConfig({}).sentryDsn).toBeUndefined();
+  expect(loadConfig({ SENTRY_DSN: '' }).sentryDsn).toBeUndefined();
+  const dsn = 'https://public@o1.ingest.sentry.io/1';
+  expect(loadConfig({ SENTRY_DSN: dsn }).sentryDsn).toBe(dsn);
+});
