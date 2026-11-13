@@ -1,6 +1,6 @@
 import { generateCodeVerifier, generateState } from 'arctic';
 import { and, eq } from 'drizzle-orm';
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { cookieOptions, OAUTH, readCookie, SID } from './cookies.ts';
 import type { Db } from './db.ts';
 import { log } from './log.ts';
@@ -18,6 +18,7 @@ interface Options {
   webUrl: string;
   secure: boolean;
   onLogout?: (userId: string) => void; // closes the user's sockets
+  limit?: RequestHandler; // the stricter limit on starting and finishing a sign-in
 }
 
 /** What the `oauth` cookie holds between the redirect to the provider and its callback. */
@@ -66,8 +67,10 @@ export async function findOrCreateUser(db: Db, provider: ProviderName, profile: 
   });
 }
 
+const pass: RequestHandler = (_req, _res, next) => next();
+
 /** /auth/*: signing in with a provider, and signing out. */
-export function authRoutes({ db, sessions, providers, webUrl, secure, onLogout }: Options) {
+export function authRoutes({ db, sessions, providers, webUrl, secure, onLogout, limit = pass }: Options) {
   const router = Router();
   const flowCookie = cookieOptions(secure, '/auth', FLOW_MS);
   const sidCookie = cookieOptions(secure, '/', SESSION_MS);
@@ -78,8 +81,8 @@ export function authRoutes({ db, sessions, providers, webUrl, secure, onLogout }
     res.json(PROVIDER_NAMES.filter((name) => providers[name]));
   });
 
-  router.get('/auth/:provider', (req, res, next) => {
-    const found = providerOf(req.params.provider);
+  router.get('/auth/:provider', limit, (req, res, next) => {
+    const found = providerOf(req.params.provider as string);
     if (!found) return next(); // the JSON 404
     const flow: Flow = {
       provider: found.name,
@@ -91,8 +94,8 @@ export function authRoutes({ db, sessions, providers, webUrl, secure, onLogout }
     res.redirect(found.provider.authorize(flow.state, flow.verifier).toString());
   });
 
-  router.get('/auth/:provider/callback', async (req, res, next) => {
-    const found = providerOf(req.params.provider);
+  router.get('/auth/:provider/callback', limit, async (req, res, next) => {
+    const found = providerOf(req.params.provider as string);
     if (!found) return next();
     const flow = readFlow(req.headers.cookie);
     res.clearCookie(OAUTH, { ...flowCookie, maxAge: undefined });

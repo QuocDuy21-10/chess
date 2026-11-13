@@ -35,6 +35,7 @@ services:
     environment:
       DATABASE_URL: postgres://chess:${POSTGRES_PASSWORD}@postgres:5432/chess
       NODE_OPTIONS: --max-old-space-size=256
+      TRUST_PROXY: '1' # Caddy is the one proxy in front of the server
     depends_on:
       postgres:
         condition: service_healthy

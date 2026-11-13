@@ -9,7 +9,16 @@ import { serverUrl } from './server';
 
 // The connection to the game server. The interface reads `useOnline`; the board is driven through `useGame`.
 
-export type OnlineError = 'not-found' | 'full' | 'busy' | 'unreachable' | 'replaced' | 'signed-out';
+export type OnlineError =
+  | 'not-found'
+  | 'full'
+  | 'busy'
+  | 'unreachable'
+  | 'replaced'
+  | 'signed-out'
+  | 'rate-limited'
+  | 'too-many-rooms'
+  | 'too-many-tabs';
 
 interface OnlineState {
   status: 'off' | 'connecting' | 'waiting' | 'playing'; // waiting: in a room, the opponent has not arrived
@@ -108,7 +117,7 @@ export const useOnline = create<OnlineState>((set, get) => {
     socket = opened;
     const enter = (id: string) =>
       opened.emit('join', { roomId: id }, (reply) => {
-        if ('error' in reply) quit(reply.error === 'full' ? 'full' : 'not-found');
+        if ('error' in reply) quit(reply.error === 'full' || reply.error === 'rate-limited' ? reply.error : 'not-found');
       });
     // Runs on the first connection and again on every reconnection: joining is how a seat is reclaimed.
     opened.on('connect', () => {
@@ -116,7 +125,7 @@ export const useOnline = create<OnlineState>((set, get) => {
       if (id) return void enter(id);
       const color = useSettings.getState().side;
       opened.emit('create', { color, minutes }, (reply) => {
-        if ('error' in reply) return quit(reply.error === 'busy' ? 'busy' : 'unreachable');
+        if ('error' in reply) return quit(reply.error === 'bad-request' ? 'unreachable' : reply.error);
         set({ roomId: reply.roomId });
         enter(reply.roomId);
       });
@@ -127,6 +136,8 @@ export const useOnline = create<OnlineState>((set, get) => {
         useAccount.setState({ status: 'signed-out', user: null });
         return quit('signed-out');
       }
+      // Too many tabs of this account: refused by the server's middleware, which socket.io does not retry either.
+      if (error.message === 'too-many-connections') return quit('too-many-tabs');
       if (get().status === 'connecting') quit('unreachable'); // mid-game, socket.io keeps trying by itself
     });
     opened.on('disconnect', (reason) => {

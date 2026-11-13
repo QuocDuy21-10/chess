@@ -4,6 +4,7 @@ import { gameResult, type Result } from '@chess/shared/result';
 import { Chess, type Color } from 'chess.js';
 
 const MAX_ROOMS = 1000;
+const MAX_ROOMS_PER_PLAYER = 5; // unfinished rooms one account may hold, so nobody can take every room
 const IDLE_MS = 10 * 60_000; // how long a room lives with nobody connected to it
 
 /** A signed-in player in a seat. `id` is their user id. */
@@ -77,9 +78,14 @@ export function createRooms(now: () => number = Date.now) {
   }
 
   return {
-    /** Makes a room with `player` in the `color` seat. Returns its id, or null when the server is full. */
-    create(player: SeatPlayer, color: Color, minutes: number): string | null {
-      if (rooms.size >= MAX_ROOMS) return null;
+    /** Makes a room with `player` in the `color` seat, unless the server or this player holds too many already. */
+    create(player: SeatPlayer, color: Color, minutes: number): { roomId: string } | { error: 'busy' | 'too-many-rooms' } {
+      if (rooms.size >= MAX_ROOMS) return { error: 'busy' };
+      let open = 0;
+      for (const room of rooms.values()) {
+        if (!room.result && (room.seats.w?.id === player.id || room.seats.b?.id === player.id)) open++;
+      }
+      if (open >= MAX_ROOMS_PER_PLAYER) return { error: 'too-many-rooms' };
       const id = randomBytes(6).toString('base64url'); // 8 URL-safe characters
       const seats: Room['seats'] = { w: null, b: null };
       seats[color] = player;
@@ -96,7 +102,7 @@ export function createRooms(now: () => number = Date.now) {
         minutes,
         startedAt: null,
       });
-      return id;
+      return { roomId: id };
     },
 
     /**

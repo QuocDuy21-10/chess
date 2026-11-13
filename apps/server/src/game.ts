@@ -2,6 +2,7 @@ import type { ClientEvents, ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import type { Server, Socket } from 'socket.io';
 import { readCookie, SID } from './cookies.ts';
+import { limiter, type Limits } from './limits.ts';
 import { log } from './log.ts';
 import { createRooms, type GameRecord, type SeatPlayer } from './rooms.ts';
 import type { Sessions } from './sessions.ts';
@@ -24,6 +25,7 @@ interface Options {
   sessions: Sessions;
   now?: () => number;
   timeControls: number[]; // minutes
+  limits: Pick<Limits, 'connectionsPerUser' | 'eventsPer10Seconds'>;
   onGameOver?: (game: GameRecord) => void; // once per game, after both players have been told
 }
 
@@ -34,11 +36,12 @@ const matches = (value: unknown, pattern: RegExp): value is string =>
   typeof value === 'string' && pattern.test(value);
 
 /** Puts the rooms behind `io`: answers every game event and keeps the flag timers. Call `close` to stop the timers. */
-export function attachGame(io: GameServer, { sessions, now, timeControls, onGameOver }: Options) {
+export function attachGame(io: GameServer, { sessions, now, timeControls, limits, onGameOver }: Options) {
   const rooms = createRooms(now);
   const reported = new Set<string>(); // rooms whose finished game has gone to onGameOver
   const seated = new Map<string, GameSocket>(); // "roomId:color" → the connection in that seat
   const flags = new Map<string, NodeJS.Timeout>(); // roomId → the timer that ends the game on time
+  const events = limiter('events', limits.eventsPer10Seconds, 10);
 
   /** Tells both players where the room stands, and re-arms the timer for the running clock. */
   function broadcast(roomId: string) {
@@ -81,6 +84,10 @@ export function attachGame(io: GameServer, { sessions, now, timeControls, onGame
     try {
       const user = token ? await sessions.find(token) : null;
       if (!user) return next(new Error('unauthorized'));
+      // Soft: two handshakes arriving together can both pass.
+      if ((io.sockets.adapter.rooms.get(userRoom(user.id))?.size ?? 0) >= limits.connectionsPerUser) {
+        return next(new Error('too-many-connections'));
+      }
       socket.data.user = { id: user.id, name: user.name, rating: user.rating }; // as of connecting
       next();
     } catch (error) {
@@ -91,6 +98,17 @@ export function attachGame(io: GameServer, { sessions, now, timeControls, onGame
 
   io.on('connection', (socket) => {
     void socket.join(userRoom(socket.data.user.id));
+    // Every game event costs the account a point. Past the limit the event is dropped and its ack says why.
+    socket.use(([, ...args], next) => {
+      events.take(socket.data.user.id).then(
+        (verdict) => {
+          if (verdict.ok) return next();
+          const ack = args.at(-1);
+          if (typeof ack === 'function') ack({ error: 'rate-limited' });
+        },
+        (error) => log.error('Event check failed', error),
+      );
+    });
 
     socket.on('create', (payload, ack) => {
       if (typeof ack !== 'function') return;
@@ -98,8 +116,7 @@ export function attachGame(io: GameServer, { sessions, now, timeControls, onGame
       if ((color !== 'w' && color !== 'b') || typeof minutes !== 'number' || !timeControls.includes(minutes)) {
         return ack({ error: 'bad-request' });
       }
-      const roomId = rooms.create(socket.data.user, color, minutes);
-      ack(roomId ? { roomId } : { error: 'busy' });
+      ack(rooms.create(socket.data.user, color, minutes));
     });
 
     socket.on('join', (payload, ack) => {

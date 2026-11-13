@@ -23,9 +23,9 @@ export interface RoomState {
   players: Record<Color, Player | null>; // null while a seat is empty
 }
 
-export type CreateAck = { roomId: string } | { error: 'busy' | 'bad-request' };
-export type JoinAck = { ok: true } | { error: 'not-found' | 'full' | 'bad-request' };
-export type MoveError = 'not-seated' | 'not-started' | 'over' | 'not-your-turn' | 'illegal' | 'bad-request';
+export type CreateAck = { roomId: string } | { error: 'busy' | 'too-many-rooms' | 'rate-limited' | 'bad-request' };
+export type JoinAck = { ok: true } | { error: 'not-found' | 'full' | 'rate-limited' | 'bad-request' };
+export type MoveError = 'not-seated' | 'not-started' | 'over' | 'not-your-turn' | 'illegal' | 'rate-limited' | 'bad-request';
 export type MoveAck = { ok: true } | { error: MoveError };
 
 // Who sends an event is the account behind the connection's sid cookie, checked when it connects.

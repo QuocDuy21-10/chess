@@ -17,6 +17,7 @@ test('development defaults when only the required variables are set', () => {
     publicUrl: 'http://localhost:3001',
     webUrl: 'http://localhost:3000',
     oauth: { github: { clientId: 'gh-id', clientSecret: 'gh-secret' } },
+    trustProxy: 0,
   });
   expect(loadConfig({ PORT: '4000' }).publicUrl).toBe('http://localhost:4000');
 });
@@ -82,4 +83,13 @@ test('SENTRY_DSN is optional: unset or empty turns Sentry off', () => {
   expect(loadConfig({ SENTRY_DSN: '' }).sentryDsn).toBeUndefined();
   const dsn = 'https://public@o1.ingest.sentry.io/1';
   expect(loadConfig({ SENTRY_DSN: dsn }).sentryDsn).toBe(dsn);
+});
+
+test('TRUST_PROXY counts the proxies in front of the server: 0 unless set', () => {
+  expect(loadConfig({}).trustProxy).toBe(0);
+  expect(loadConfig({ TRUST_PROXY: '' }).trustProxy).toBe(0);
+  expect(loadConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(1);
+  for (const bad of ['-1', 'abc', '1.5', '11', ' ']) {
+    expect(() => loadConfig({ TRUST_PROXY: bad }), bad).toThrow('TRUST_PROXY');
+  }
 });

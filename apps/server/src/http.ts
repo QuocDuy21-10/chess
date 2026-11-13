@@ -5,21 +5,30 @@ import { log } from './log.ts';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+interface HttpOptions {
+  origins?: string[] | true; // the sites allowed to call; any site when true
+  routes?: Router[];
+  trustProxy?: number; // proxies in front of the server, so req.ip is the client's address
+  limit?: RequestHandler; // counts every request but the health check
+}
+
 /**
  * The HTTP side of the server: security headers, CORS for the site, small JSON bodies, a guard against
- * cross-site requests, a health check, the given routes, and JSON for everything else.
+ * cross-site requests, a health check, a rate limit, the given routes, and JSON for everything else.
  */
-export function createHttpApp(origins: string[] | true = true, routes: Router[] = []) {
+export function createHttpApp({ origins = true, routes = [], trustProxy = 0, limit }: HttpOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
+  app.set('trust proxy', trustProxy);
   app.use(helmet());
   app.use(cors({ origin: origins, credentials: true })); // credentials: the site's fetch sends the sid cookie
   app.use(express.json({ limit: '1kb' }));
   app.use(sameSiteOnly(origins));
-  // A liveness check for the host's load balancer. It reads no state.
+  // A liveness check for the host's load balancer. It reads no state, and no limit applies to it.
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+  if (limit) app.use(limit);
   for (const router of routes) app.use(router);
   app.use((_req, res) => {
     res.status(404).json({ error: 'not-found' });
