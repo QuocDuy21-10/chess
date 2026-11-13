@@ -9,3 +9,4 @@ docs
 apps/web/*
 !apps/web/package.json
 apps/server/src/**/*.test.ts
+**/.env
