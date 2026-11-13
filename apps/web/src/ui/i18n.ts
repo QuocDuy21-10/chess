@@ -3,7 +3,7 @@ import { useSettings } from '@/state/settings';
 
 const en = {
   title: 'Combat Chess',
-  team: { w: 'Amber', b: 'Teal' },
+  team: { w: 'Red', b: 'Blue' },
   toMove: (team: string) => `${team} to move`,
   check: 'Check',
   played: (team: string, san: string) => `${team} played ${san}.`,
@@ -114,7 +114,7 @@ export type Strings = typeof en;
 // `Strings` makes a missing or misspelt key a type error.
 const vi: Strings = {
   title: 'Combat Chess',
-  team: { w: 'Cam', b: 'Lục' },
+  team: { w: 'Đỏ', b: 'Xanh' },
   toMove: (team) => `Lượt của ${team}`,
   check: 'Chiếu',
   played: (team, san) => `${team} đi ${san}.`,

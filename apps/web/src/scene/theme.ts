@@ -2,8 +2,8 @@ export const PALETTE = {
   lightTile: '#D9C7A3', // sandstone
   darkTile: '#3B4252', // slate
   base: '#5B4636', // walnut
-  amber: '#D97706',
-  teal: '#0F766E',
+  red: '#B91C1C',
+  blue: '#1D4ED8',
   steel: '#CBD5E1',
   gold: '#EAB308',
   wood: '#7C4A1E',
@@ -16,7 +16,7 @@ export const PALETTE = {
   background: '#1C1917',
 } as const;
 
-export const TEAM = { w: PALETTE.amber, b: PALETTE.teal } as const;
+export const TEAM = { w: PALETTE.red, b: PALETTE.blue } as const;
 
 // Starting values, tuned by eye.
 export const TIMING = {
