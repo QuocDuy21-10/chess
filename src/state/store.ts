@@ -13,6 +13,9 @@ import { CAMERA } from '@/scene/theme';
 
 type Phase = 'idle' | 'animating' | 'promoting' | 'gameOver';
 
+/** Who plays the other army: this device too, the server, or the computer. */
+export type Mode = 'local' | 'online' | 'computer';
+
 interface GameState {
   pieces: Piece[];
   selected: Square | null;
@@ -29,12 +32,14 @@ interface GameState {
   gameId: number; // changes on every new game
   seat: Color | null; // online: the army played on this device. null: both armies are played here
   send: ((move: string) => void) | null; // online: hands a move made here to the server; null while it is out of reach
+  mode: Mode; // set together with `seat` by whoever drives the other army
   select(square: Square | null): void;
   /** `remote` marks a move that came from the server, which is not sent back to it. */
   submitMove(from: Square, to: Square, promotion?: PromotionPiece, remote?: boolean): Promise<void>;
   submitText(text: string): boolean;
   choosePromotion(piece: PromotionPiece): void;
   cancelPromotion(): void;
+  /** Takes back `undoPlies` moves at once. The board jumps to the earlier position; nothing is animated. */
   undo(): void;
   newGame(): void;
   /** Online: brings the board to the server's move list, given in coordinate form ("e2e4"). */
@@ -47,8 +52,27 @@ interface GameState {
 export const isLocked = (s: Pick<GameState, 'seat' | 'send' | 'turn'>) =>
   s.seat !== null && (!s.send || s.turn !== s.seat);
 
+/** Against the computer: how many moves one Undo takes back, so that it is the player's turn again in the
+ *  position before their last move. 0 when the player has not moved yet. */
+export function pliesToUndo(length: number, turn: Color, seat: Color): number {
+  if (turn !== seat) return Math.min(length, 1); // the machine is to move only after the player ended the game
+  return length >= 2 ? 2 : 0;
+}
+
+/** How many moves Undo would take back now; 0 when it is not available. */
+export function undoPlies(s: Pick<GameState, 'mode' | 'phase' | 'snapshots' | 'turn' | 'seat' | 'result'>): number {
+  if (s.mode === 'online' || (s.phase !== 'idle' && s.phase !== 'gameOver')) return 0; // a move made online stands
+  if (s.mode === 'local' || !s.seat) return Math.min(s.snapshots.length, 1);
+  if (s.result?.reason === 'timeout') return 0; // the clock is at zero: taking moves back would not restart it
+  if (s.phase === 'idle' && s.turn !== s.seat) return 0; // the machine is thinking
+  return pliesToUndo(s.snapshots.length, s.turn, s.seat);
+}
+
 // chess.js is the single source of truth for rules and position.
 const chess = new Chess();
+
+/** The moves so far in coordinate form ("e2e4", "e7e8q"), as the server and the engine speak them. */
+export const moveList = () => chess.history({ verbose: true }).map((m) => m.lan);
 
 let inFlight: Promise<void> = Promise.resolve(); // the move being animated; already settled when there is none
 let latest: string[] = []; // the newest move list the server has sent
@@ -74,6 +98,7 @@ export const useGame = create<GameState>((set, get) => ({
   gameId: 0,
   seat: null,
   send: null,
+  mode: 'local',
 
   select(square) {
     if (get().phase !== 'idle' || isLocked(get())) return;
@@ -128,17 +153,17 @@ export const useGame = create<GameState>((set, get) => ({
     if (get().phase === 'promoting') set({ phase: 'idle', pendingPromotion: null });
   },
 
-  /** Takes back one move by one side. The board jumps to the earlier position; nothing is animated. */
   undo() {
-    const { phase, snapshots, seat } = get();
-    if (seat || (phase !== 'idle' && phase !== 'gameOver') || !snapshots.length) return;
-    chess.undo();
+    const n = undoPlies(get());
+    if (!n) return;
+    const { phase, snapshots } = get();
+    for (let i = 0; i < n; i++) chess.undo();
     if (phase === 'gameOver') fadeMusic(1, 800);
     play('select');
     const last = chess.history({ verbose: true }).at(-1);
     set({
-      pieces: snapshots.at(-1)!, // the snapshot keeps every piece id, so no actor is rebuilt needlessly
-      snapshots: snapshots.slice(0, -1),
+      pieces: snapshots.at(-n)!, // the snapshot keeps every piece id, so no actor is rebuilt needlessly
+      snapshots: snapshots.slice(0, -n),
       selected: null,
       targets: [],
       phase: 'idle',
@@ -164,7 +189,7 @@ export const useGame = create<GameState>((set, get) => ({
       try {
         for (;;) {
           await inFlight;
-          const local = chess.history({ verbose: true }).map((m) => m.lan);
+          const local = moveList();
           const target = latest;
           const agrees = local.every((lan, i) => lan === target[i]);
           if (agrees && target.length === local.length) return;

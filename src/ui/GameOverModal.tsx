@@ -17,7 +17,7 @@ function Dialog() {
   const t = useT();
   const result = useGame((s) => s.result);
   const newGame = useGame((s) => s.newGame);
-  const online = useGame((s) => s.seat !== null);
+  const online = useGame((s) => s.mode === 'online');
   const leave = useOnline((s) => s.leave);
   // Closing only hides the dialog so the final position can be studied.
   const [closed, setClosed] = useState(false);

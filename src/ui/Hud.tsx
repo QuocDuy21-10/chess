@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { play } from '@/audio/audio';
 import { useOnline } from '@/net/online';
 import { TEAM } from '@/scene/theme';
-import { isLocked, useGame } from '@/state/store';
+import { isLocked, undoPlies, useGame } from '@/state/store';
 import { resultText, useT } from './i18n';
 import { Modal } from './Modal';
 
@@ -18,7 +18,7 @@ const button =
  */
 export function Hud({ onPause }: { onPause: () => void }) {
   const t = useT();
-  const online = useGame((s) => s.seat !== null);
+  const online = useGame((s) => s.mode === 'online');
   const [drawer, setDrawer] = useState(false);
   const pause = (
     <button onClick={onPause} className={button}>
@@ -67,13 +67,13 @@ function Status() {
   const inCheck = useGame((s) => s.inCheck);
   const latest = useGame((s) => s.history.at(-1));
   const result = useGame((s) => s.result);
-  const seat = useGame((s) => s.seat);
+  const online = useGame((s) => s.mode === 'online');
   const connected = useOnline((s) => s.connected);
   const opponentOnline = useOnline((s) => s.opponentOnline);
   const mover = t.team[turn === 'w' ? 'b' : 'w']; // who made the latest move
   const outcome = result && resultText(t, result);
   // Online, while the game is live: say so when either player has lost the server.
-  const trouble = !seat || result ? null : !connected ? t.reconnecting : !opponentOnline ? t.opponentOffline : null;
+  const trouble = !online || result ? null : !connected ? t.reconnecting : !opponentOnline ? t.opponentOffline : null;
 
   return (
     <>
@@ -97,6 +97,7 @@ function Status() {
 function Clocks() {
   const t = useT();
   const seat = useGame((s) => s.seat);
+  const mode = useGame((s) => s.mode);
   const clocks = useOnline((s) => s.clocks);
   const clocksAt = useOnline((s) => s.clocksAt);
   const running = useOnline((s) => s.running);
@@ -106,7 +107,7 @@ function Clocks() {
     const timer = setInterval(() => setNow(performance.now()), 250);
     return () => clearInterval(timer);
   }, [running]);
-  if (!seat) return null;
+  if (mode !== 'online') return null;
 
   return (
     <div className="flex flex-col gap-1 font-mono portrait:text-sm">
@@ -136,8 +137,8 @@ function Clocks() {
 function UndoButton() {
   const t = useT();
   const undo = useGame((s) => s.undo);
-  const possible = useGame((s) => (s.phase === 'idle' || s.phase === 'gameOver') && s.history.length > 0);
-  const online = useGame((s) => s.seat !== null);
+  const possible = useGame((s) => undoPlies(s) > 0);
+  const online = useGame((s) => s.mode === 'online');
   if (online) return null; // a move made online cannot be taken back
   return (
     <button onClick={undo} disabled={!possible} className={button}>

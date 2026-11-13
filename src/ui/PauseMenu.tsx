@@ -17,7 +17,7 @@ export function PauseMenu(props: { onResume: () => void; onSettings: () => void;
   const hasMoves = useGame((s) => s.history.length > 0);
   const animating = useGame((s) => s.phase === 'animating');
   const newGame = useGame((s) => s.newGame);
-  const online = useGame((s) => s.seat !== null);
+  const online = useGame((s) => s.mode === 'online');
   const over = useGame((s) => s.result !== null);
   const resign = useOnline((s) => s.resign);
   const leave = useOnline((s) => s.leave);

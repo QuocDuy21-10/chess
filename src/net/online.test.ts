@@ -68,7 +68,7 @@ test('a created room waits for an opponent, then both sides play', async () => {
   await until(() => online().status === 'waiting');
   const roomId = online().roomId!;
   expect(replaceState).toHaveBeenLastCalledWith(null, '', `?room=${roomId}`);
-  expect(game().seat).toBe('w');
+  expect(game()).toMatchObject({ seat: 'w', mode: 'online' });
   expect(game().submitText('e4')).toBe(false); // nobody to play against yet
 
   await bobJoins(roomId);

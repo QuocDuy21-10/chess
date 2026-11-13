@@ -1,10 +1,11 @@
+import type { Color } from 'chess.js';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { useGame } from './store';
+import { moveList, pliesToUndo, useGame } from './store';
 
 const game = () => useGame.getState();
 
 beforeEach(() => {
-  useGame.setState({ seat: null, send: null });
+  useGame.setState({ seat: null, send: null, mode: 'local' });
   game().newGame();
 });
 
@@ -275,7 +276,54 @@ test('a result only the server knows ends the game', () => {
 
 test('undo does nothing online', async () => {
   await play('e4');
-  useGame.setState({ seat: 'w', send: vi.fn() });
+  useGame.setState({ mode: 'online', seat: 'w', send: vi.fn() });
   game().undo();
   expect(game().history).toEqual(['e4']);
+});
+
+// Against the computer: the player holds one seat, and Undo takes back the machine's reply with the player's move.
+
+test('the move list comes in coordinate form', async () => {
+  await play('e4', 'e5', 'Nf3');
+  expect(moveList()).toEqual(['e2e4', 'e7e5', 'g1f3']);
+});
+
+test.each([
+  ['the player to move, after a pair', 4, 'w', 'w', 2],
+  ['the player is Black and has not moved yet', 1, 'b', 'b', 0],
+  ['nothing played', 0, 'w', 'w', 0],
+  ['the machine to move, after the player mated it', 5, 'b', 'w', 1],
+])('pliesToUndo: %s', (_name, length, turn, seat, expected) => {
+  expect(pliesToUndo(length as number, turn as Color, seat as Color)).toBe(expected);
+});
+
+test("against the computer, undo takes back the machine's reply and the player's move", async () => {
+  await play('e4', 'e5');
+  const before = game().pieces;
+  await play('Nf3', 'Nc6');
+  useGame.setState({ mode: 'computer', seat: 'w', send: vi.fn() });
+  game().undo();
+  expect(game()).toMatchObject({ history: ['e4', 'e5'], turn: 'w', pieces: before, phase: 'idle' });
+  expect(game().snapshots).toHaveLength(2);
+});
+
+test('against the computer, undo waits while the machine is to move, and is refused after a flag', async () => {
+  await play('e4');
+  useGame.setState({ mode: 'computer', seat: 'w', send: vi.fn() });
+  game().undo(); // the machine is thinking
+  expect(game().history).toEqual(['e4']);
+  await game().sync(['e2e4', 'e7e5']); // its reply
+  game().finish({ reason: 'timeout', winner: 'b' });
+  game().undo();
+  expect(game().history).toEqual(['e4', 'e5']);
+});
+
+test('against the computer, undo after the player mates the machine takes back that one move', async () => {
+  await play('e4', 'e5', 'Bc4', 'Nc6', 'Qh5', 'Nf6');
+  useGame.setState({ mode: 'computer', seat: 'w', send: vi.fn() });
+  await play('Qxf7#');
+  expect(game().phase).toBe('gameOver');
+  game().undo();
+  expect(game()).toMatchObject({ phase: 'idle', turn: 'w', result: null });
+  expect(game().history).toHaveLength(6);
 });

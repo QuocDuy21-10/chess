@@ -74,7 +74,7 @@ export const useOnline = create<OnlineState>((set, get) => {
   function quit(error: OnlineError | null) {
     hangUp();
     moves = [];
-    useGame.setState({ seat: null, send: null });
+    useGame.setState({ seat: null, send: null, mode: 'local' });
     // newGame() alone does nothing while a move is animating; sync([]) waits for that move first.
     void useGame
       .getState()
@@ -98,7 +98,7 @@ export const useOnline = create<OnlineState>((set, get) => {
       history.replaceState(null, '', `?room=${state.roomId}`);
     }
     moves = state.moves;
-    useGame.setState({ seat: state.color, send: state.started ? send : null });
+    useGame.setState({ seat: state.color, send: state.started ? send : null, mode: 'online' });
     set({
       status: state.started ? 'playing' : 'waiting',
       roomId: state.roomId,
