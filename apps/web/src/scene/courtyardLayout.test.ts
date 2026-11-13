@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { DAIS_HALF, flagstones, random, ring, WALL_INNER } from './courtyard';
+import { DAIS_HALF, flagstones, random, ring, WALL_INNER } from './courtyardLayout';
 
 test('random is the same sequence for the same seed, in [0, 1)', () => {
   const a = random(7);

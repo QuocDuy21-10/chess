@@ -7,6 +7,7 @@ import { useGame } from '@/state/store';
 import { useT } from '@/ui/i18n';
 import { Board } from './Board';
 import { CameraRig } from './CameraRig';
+import { Courtyard } from './Courtyard';
 import { PieceActor } from './Piece';
 import { PALETTE } from './theme';
 import { tickTweens } from './tween';
@@ -45,10 +46,23 @@ export default function Scene() {
   return (
     <Canvas shadows onPointerMissed={() => select(null)}>
       <color attach="background" args={[PALETTE.background]} />
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[5, 10, lightZ]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
+      <fog attach="fog" args={[PALETTE.background, 18, 45]} />
+      <hemisphereLight args={[PALETTE.skyFill, PALETTE.earth, 0.8]} />
+      <directionalLight
+        position={[5, 10, lightZ]}
+        color={PALETTE.sun}
+        intensity={1.8}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        // the shadow map covers the board, not the courtyard, so the pieces' shadows stay sharp
+        shadow-camera-left={-6}
+        shadow-camera-right={6}
+        shadow-camera-top={6}
+        shadow-camera-bottom={-6}
+      />
       <TweenTicker />
       <CameraRig />
+      <Courtyard />
       <Board />
       {pieces.map((piece) => (
         <PieceActor key={piece.id} piece={piece} />

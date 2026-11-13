@@ -13,7 +13,15 @@ export const PALETTE = {
   lastMove: '#A3B18A',
   check: '#DC2626',
   marker: '#16A34A',
-  background: '#1C1917',
+  background: '#3D3142', // dusk; the fog fades the earth beyond the wall into it
+  stone: '#8C8279',
+  stoneDark: '#5C554E',
+  earth: '#3B3026',
+  roof: '#4B4F5C',
+  iron: '#3F3F46',
+  flame: '#FFA040',
+  sun: '#FFD9B0',
+  skyFill: '#A8B8D8',
 } as const;
 
 export const TEAM = { w: PALETTE.red, b: PALETTE.blue } as const;

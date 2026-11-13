@@ -4,7 +4,7 @@
 
 **Goal:** Put the board in a castle courtyard the default view can see, make the teams red and blue, and load pieces from rigged `.glb` models made with Meshy, proven with one pilot pawn while every other type keeps its primitive-built model.
 
-**Architecture:** The courtyard is plain R3F geometry (`Courtyard.tsx`, `Brazier.tsx`, `Banner.tsx`) laid out by a pure, tested `courtyard.ts`; the default camera comes down to 28° and looks at a `CAMERA.target`, checked by a projection test. A manifest (`pieces/models.ts`) lists the types drawn from `.glb` files; `GlbPiece.tsx` loads one with drei's `useGLTF`, recolours magenta texels to the team colour in the material's shader, and implements the existing `Rig` by scrubbing animation clips, so `Piece.tsx`'s actor, the sequencer and `TIMING` do not change. A missing or broken model falls back to the primitive-built one.
+**Architecture:** The courtyard is plain R3F geometry (`Courtyard.tsx`, `Brazier.tsx`, `Banner.tsx`) laid out by a pure, tested `courtyardLayout.ts`; the default camera comes down to 28° and looks at a `CAMERA.target`, checked by a projection test. A manifest (`pieces/models.ts`) lists the types drawn from `.glb` files; `GlbPiece.tsx` loads one with drei's `useGLTF`, recolours magenta texels to the team colour in the material's shader, and implements the existing `Rig` by scrubbing animation clips, so `Piece.tsx`'s actor, the sequencer and `TIMING` do not change. A missing or broken model falls back to the primitive-built one.
 
 **Tech Stack:** Next.js 16.4, React 19.3, three.js 0.187, @react-three/fiber 9.8, @react-three/drei 10.7.9, Vitest 5, Playwright 1.64.1, @gltf-transform/cli 4.5.1, Meshy web app (free plan), Claude in Chrome.
 
@@ -34,7 +34,7 @@
 | `apps/web/src/scene/Board.tsx` | 1 | glowing check square |
 | `e2e/local.spec.ts`, `e2e/online.spec.ts` | 1, 9 | team names; models load |
 | `apps/web/src/scene/CameraRig.tsx`, `apps/web/eslint.config.mjs`, `scene/camera.test.ts` | 2 | camera target; tests may import three |
-| `apps/web/src/scene/courtyard.ts`, `courtyard.test.ts` | 3 | seeded layout |
+| `apps/web/src/scene/courtyardLayout.ts`, `courtyardLayout.test.ts` | 3 | seeded layout |
 | `apps/web/src/scene/Courtyard.tsx`, `Scene.tsx` | 4, 5, 8 | courtyard, light, fog; preload |
 | `apps/web/src/scene/Brazier.tsx`, `Banner.tsx` | 5 | moving parts |
 | `apps/web/src/scene/pieces/rig.ts`, `rig.test.ts` | 6 | `clipTime` |
@@ -235,8 +235,8 @@ git commit -m "feat: lower the default view to 28 degrees and aim it past the ce
 ### Task 3: The courtyard's layout, seeded so every load looks the same
 
 **Files:**
-- Create: `apps/web/src/scene/courtyard.ts`
-- Test: create `apps/web/src/scene/courtyard.test.ts`
+- Create: `apps/web/src/scene/courtyardLayout.ts` (not `courtyard.ts`: macOS would confuse it with `Courtyard.tsx`)
+- Test: create `apps/web/src/scene/courtyardLayout.test.ts`
 
 **Interfaces:**
 - Consumes: `COURTYARD` from `theme.ts` (Task 2).
@@ -252,10 +252,10 @@ git commit -m "feat: lower the default view to 28 degrees and aim it past the ce
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `apps/web/src/scene/courtyard.test.ts`:
+Create `apps/web/src/scene/courtyardLayout.test.ts`:
 ```ts
 import { expect, test } from 'vitest';
-import { DAIS_HALF, flagstones, random, ring, WALL_INNER } from './courtyard';
+import { DAIS_HALF, flagstones, random, ring, WALL_INNER } from './courtyardLayout';
 
 test('random is the same sequence for the same seed, in [0, 1)', () => {
   const a = random(7), b = random(7);
@@ -286,12 +286,12 @@ test('ring spaces points evenly, each turned so a box lies along the circle', ()
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `cd apps/web && npx vitest run src/scene/courtyard.test.ts`
-Expected: FAIL — `Cannot find module './courtyard'`.
+Run: `cd apps/web && npx vitest run src/scene/courtyardLayout.test.ts`
+Expected: FAIL — `Cannot find module './courtyardLayout'`.
 
 - [ ] **Step 3: Write the layout**
 
-Create `apps/web/src/scene/courtyard.ts`:
+Create `apps/web/src/scene/courtyardLayout.ts`:
 ```ts
 import { COURTYARD } from './theme';
 
@@ -355,13 +355,13 @@ export function ring(radius: number, count: number, offset = 0): Placement[] {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `cd apps/web && npx vitest run src/scene/courtyard.test.ts`
+Run: `cd apps/web && npx vitest run src/scene/courtyardLayout.test.ts`
 Expected: PASS. If `north` fails on `-0` versus `0` (`Math.sin(0) * 10` is `0`, so it should not), compare with `toBeCloseTo` per field instead.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/web/src/scene/courtyard.ts apps/web/src/scene/courtyard.test.ts
+git add apps/web/src/scene/courtyardLayout.ts apps/web/src/scene/courtyardLayout.test.ts
 git commit -m "feat: lay out the courtyard's flagstones and wall ring, seeded so every load looks the same"
 ```
 
@@ -400,7 +400,7 @@ Create `apps/web/src/scene/Courtyard.tsx`:
 import { RoundedBox } from '@react-three/drei';
 import { useLayoutEffect, useRef } from 'react';
 import { Color, Object3D, type InstancedMesh } from 'three';
-import { flagstones, noRaycast, ring, type Placement } from './courtyard';
+import { flagstones, noRaycast, ring, type Placement } from './courtyardLayout';
 import { COURTYARD, PALETTE } from './theme';
 
 const { floorY, wallRadius: R, wallHeight: H, merlonHeight: M } = COURTYARD;
@@ -553,7 +553,7 @@ Create `apps/web/src/scene/Brazier.tsx`:
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { Mesh, PointLight } from 'three';
-import { noRaycast } from './courtyard';
+import { noRaycast } from './courtyardLayout';
 import { PALETTE } from './theme';
 import { reducedMotion } from './tween';
 
@@ -597,7 +597,7 @@ Create `apps/web/src/scene/Banner.tsx`:
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { CanvasTexture, DoubleSide, SRGBColorSpace, type Mesh, type PlaneGeometry } from 'three';
-import { noRaycast } from './courtyard';
+import { noRaycast } from './courtyardLayout';
 import { COURTYARD, PALETTE } from './theme';
 import { reducedMotion } from './tween';
 
@@ -1076,7 +1076,7 @@ import {
   type Object3D,
 } from 'three';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { noRaycast } from '../courtyard';
+import { noRaycast } from '../courtyardLayout';
 import { HEIGHT, MODELS, type Clips } from './models';
 import { clipTime, keys, type PieceModelProps } from './rig';
 
