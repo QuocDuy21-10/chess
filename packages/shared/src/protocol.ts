@@ -5,6 +5,12 @@ import type { Result } from './result.ts';
 
 export const TIME_CONTROLS = [5, 10, 30]; // minutes for each side
 
+/** A seated player, as both players see them. */
+export interface Player {
+  name: string;
+  rating: number;
+}
+
 /** What one player is told about their room. Sent in full after every change. */
 export interface RoomState {
   roomId: string;
@@ -14,6 +20,7 @@ export interface RoomState {
   clocks: Record<Color, number>; // milliseconds left, as of sending
   result: Result | null;
   opponentOnline: boolean;
+  players: Record<Color, Player | null>; // null while a seat is empty
 }
 
 export type CreateAck = { roomId: string } | { error: 'busy' | 'bad-request' };
@@ -21,9 +28,10 @@ export type JoinAck = { ok: true } | { error: 'not-found' | 'full' | 'bad-reques
 export type MoveError = 'not-seated' | 'not-started' | 'over' | 'not-your-turn' | 'illegal' | 'bad-request';
 export type MoveAck = { ok: true } | { error: MoveError };
 
+// Who sends an event is the account behind the connection's sid cookie, checked when it connects.
 export interface ClientEvents {
-  create(payload: { playerId: string; color: Color; minutes: number }, ack: (reply: CreateAck) => void): void;
-  join(payload: { roomId: string; playerId: string }, ack: (reply: JoinAck) => void): void;
+  create(payload: { color: Color; minutes: number }, ack: (reply: CreateAck) => void): void;
+  join(payload: { roomId: string }, ack: (reply: JoinAck) => void): void;
   move(move: string, ack: (reply: MoveAck) => void): void;
   resign(ack: (reply: MoveAck) => void): void;
 }

@@ -7,7 +7,7 @@ import { useGame } from '@/state/store';
 
 // The connection to the game server. The interface reads `useOnline`; the board is driven through `useGame`.
 
-export type OnlineError = 'not-found' | 'full' | 'busy' | 'unreachable' | 'replaced';
+export type OnlineError = 'not-found' | 'full' | 'busy' | 'unreachable' | 'replaced' | 'signed-out';
 
 interface OnlineState {
   status: 'off' | 'connecting' | 'waiting' | 'playing'; // waiting: in a room, the opponent has not arrived
@@ -38,30 +38,9 @@ const idle = {
 
 let socket: Socket<ServerEvents, ClientEvents> | null = null;
 let moves: string[] = []; // the server's latest list: where the board returns when a move is refused
-let visitId: string | undefined; // this browser's id when storage is blocked
-
-/** This browser's identity: a secret between it and the server. Holding it is what proves a seat. */
-function playerId(): string {
-  try {
-    const stored = localStorage.getItem('chess.player');
-    if (stored) return stored;
-  } catch {
-    // storage is blocked: the id lasts for the visit, and a reload cannot reclaim the seat
-  }
-  // Not crypto.randomUUID(): it needs a secure context, which a phone on the local network does not have.
-  visitId ??= Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('');
-  try {
-    localStorage.setItem('chess.player', visitId);
-  } catch {
-    // not saved
-  }
-  return visitId;
-}
 
 /** NEXT_PUBLIC_SERVER_URL, or port 3001 on the page's own host so a phone can reach a development server. */
-const serverUrl = () => process.env.NEXT_PUBLIC_SERVER_URL ?? `${location.protocol}//${location.hostname}:3001`;
+export const serverUrl = () => process.env.NEXT_PUBLIC_SERVER_URL ?? `${location.protocol}//${location.hostname}:3001`;
 
 function hangUp() {
   socket?.removeAllListeners();
@@ -121,10 +100,11 @@ export const useOnline = create<OnlineState>((set, get) => {
   function start(roomId: string | null, minutes: number) {
     hangUp();
     set({ ...idle, status: 'connecting', roomId, error: null });
-    const opened: Socket<ServerEvents, ClientEvents> = io(serverUrl());
+    // withCredentials: the handshake carries the sid cookie, which is who this player is to the server.
+    const opened: Socket<ServerEvents, ClientEvents> = io(serverUrl(), { withCredentials: true });
     socket = opened;
     const enter = (id: string) =>
-      opened.emit('join', { roomId: id, playerId: playerId() }, (reply) => {
+      opened.emit('join', { roomId: id }, (reply) => {
         if ('error' in reply) quit(reply.error === 'full' ? 'full' : 'not-found');
       });
     // Runs on the first connection and again on every reconnection: joining is how a seat is reclaimed.
@@ -132,13 +112,15 @@ export const useOnline = create<OnlineState>((set, get) => {
       const id = get().roomId;
       if (id) return void enter(id);
       const color = useSettings.getState().side;
-      opened.emit('create', { playerId: playerId(), color, minutes }, (reply) => {
+      opened.emit('create', { color, minutes }, (reply) => {
         if ('error' in reply) return quit(reply.error === 'busy' ? 'busy' : 'unreachable');
         set({ roomId: reply.roomId });
         enter(reply.roomId);
       });
     });
-    opened.on('connect_error', () => {
+    opened.on('connect_error', (error) => {
+      // No session (never signed in, signed out, or expired): socket.io does not retry this one.
+      if (error.message === 'unauthorized') return quit('signed-out');
       if (get().status === 'connecting') quit('unreachable'); // mid-game, socket.io keeps trying by itself
     });
     opened.on('disconnect', (reason) => {

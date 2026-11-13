@@ -1,32 +1,38 @@
 import type { ClientEvents, ServerEvents } from '@chess/shared/protocol';
 import type { Color } from 'chess.js';
 import type { Server, Socket } from 'socket.io';
-import { createRooms } from './rooms.ts';
+import { readCookie, SID } from './cookies.ts';
+import { createRooms, type SeatPlayer } from './rooms.ts';
+import type { Sessions } from './sessions.ts';
 
 // What a well-formed request looks like. Nothing a client sends is used before it passes one of these.
-const PLAYER = /^[\w-]{8,64}$/;
 const ROOM = /^[\w-]{8}$/;
 const MOVE = /^[a-h][1-8][a-h][1-8][nbrq]?$/;
 const SWEEP_MS = 60_000;
 
-/** The seat a connection holds. Empty until it joins a room. */
-interface Seat {
+/** Who is on a connection, set when it connects, and the seat it holds: empty until it joins a room. */
+interface SocketData {
+  user: SeatPlayer;
   roomId?: string;
   color?: Color;
 }
-export type GameServer = Server<ClientEvents, ServerEvents, Record<string, never>, Seat>;
-type GameSocket = Socket<ClientEvents, ServerEvents, Record<string, never>, Seat>;
+export type GameServer = Server<ClientEvents, ServerEvents, Record<string, never>, SocketData>;
+type GameSocket = Socket<ClientEvents, ServerEvents, Record<string, never>, SocketData>;
 
 interface Options {
+  sessions: Sessions;
   now?: () => number;
   timeControls: number[]; // minutes
 }
+
+/** The Socket.IO room every connection of one account is in, so signing out can close them all. */
+export const userRoom = (userId: string) => `user:${userId}`;
 
 const matches = (value: unknown, pattern: RegExp): value is string =>
   typeof value === 'string' && pattern.test(value);
 
 /** Puts the rooms behind `io`: answers every game event and keeps the flag timers. Call `close` to stop the timers. */
-export function attachGame(io: GameServer, { now, timeControls }: Options) {
+export function attachGame(io: GameServer, { sessions, now, timeControls }: Options) {
   const rooms = createRooms(now);
   const seated = new Map<string, GameSocket>(); // "roomId:color" → the connection in that seat
   const flags = new Map<string, NodeJS.Timeout>(); // roomId → the timer that ends the game on time
@@ -53,45 +59,57 @@ export function attachGame(io: GameServer, { now, timeControls }: Options) {
   /** Takes a connection out of its seat. The player keeps the seat and can come back to it. */
   function vacate(socket: GameSocket) {
     const { roomId, color } = socket.data;
-    socket.data = {};
+    socket.data.roomId = socket.data.color = undefined;
     if (!roomId || !color || seated.get(`${roomId}:${color}`) !== socket) return;
     seated.delete(`${roomId}:${color}`);
     rooms.leave(roomId, color);
     broadcast(roomId);
   }
 
+  // A connection without a live session is refused before any event: online play needs an account.
+  io.use(async (socket, next) => {
+    const token = readCookie(socket.handshake.headers.cookie, SID);
+    try {
+      const user = token ? await sessions.find(token) : null;
+      if (!user) return next(new Error('unauthorized'));
+      socket.data.user = { id: user.id, name: user.name, rating: user.rating }; // as of connecting
+      next();
+    } catch (error) {
+      console.error('Socket sign-in check failed:', error);
+      next(new Error('unavailable'));
+    }
+  });
+
   io.on('connection', (socket) => {
+    void socket.join(userRoom(socket.data.user.id));
+
     socket.on('create', (payload, ack) => {
       if (typeof ack !== 'function') return;
-      const { playerId, color, minutes } = Object(payload) as Record<string, unknown>;
-      if (
-        !matches(playerId, PLAYER) ||
-        (color !== 'w' && color !== 'b') ||
-        typeof minutes !== 'number' ||
-        !timeControls.includes(minutes)
-      ) {
+      const { color, minutes } = Object(payload) as Record<string, unknown>;
+      if ((color !== 'w' && color !== 'b') || typeof minutes !== 'number' || !timeControls.includes(minutes)) {
         return ack({ error: 'bad-request' });
       }
-      const roomId = rooms.create(playerId, color, minutes);
+      const roomId = rooms.create(socket.data.user, color, minutes);
       ack(roomId ? { roomId } : { error: 'busy' });
     });
 
     socket.on('join', (payload, ack) => {
       if (typeof ack !== 'function') return;
-      const { roomId, playerId } = Object(payload) as Record<string, unknown>;
-      if (!matches(roomId, ROOM) || !matches(playerId, PLAYER)) return ack({ error: 'bad-request' });
+      const { roomId } = Object(payload) as Record<string, unknown>;
+      if (!matches(roomId, ROOM)) return ack({ error: 'bad-request' });
       vacate(socket); // a connection sits in one room at a time
-      const seat = rooms.join(roomId, playerId);
+      const seat = rooms.join(roomId, socket.data.user);
       if ('error' in seat) return ack(seat);
       const key = `${roomId}:${seat.color}`;
       const earlier = seated.get(key);
       if (earlier) {
-        // The same player in a second tab: the newer connection takes the seat, which never goes offline.
-        earlier.data = {};
+        // The same account in a second tab: the newer connection takes the seat, which never goes offline.
+        earlier.data.roomId = earlier.data.color = undefined;
         earlier.disconnect(true);
       }
       seated.set(key, socket);
-      socket.data = { roomId, color: seat.color };
+      socket.data.roomId = roomId;
+      socket.data.color = seat.color;
       ack({ ok: true });
       broadcast(roomId);
     });

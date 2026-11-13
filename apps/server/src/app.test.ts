@@ -2,25 +2,33 @@ import type { ClientEvents, CreateAck, JoinAck, MoveAck, RoomState, ServerEvents
 import { io, type Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeEach, expect, test } from 'vitest';
 import { createApp } from './app.ts';
-import { connectTest } from './test-db.ts';
+import { users } from './schema.ts';
+import { connectTest, truncate } from './test-db.ts';
 
-// The real server on a free port, talked to by real clients.
+// The real server on a free port, talked to by real clients signed in as Ann, Bob and Cy.
 
 type Client = Socket<ServerEvents, ClientEvents>;
 
-const ANN = 'ann-player-id';
-const BOB = 'bob-player-id';
 const SHORT = 0.002; // minutes: a clock of 120 ms, to watch a flag fall
 let app: ReturnType<typeof createApp>;
 let port: number;
 let skew: number; // milliseconds added to the server's clock
 const clients: Client[] = [];
 const { pool, db } = connectTest();
+let ANN: string; // each player's sid cookie
+let BOB: string;
+let CY: string;
 
 beforeEach(async () => {
   skew = 0;
+  await truncate(pool);
   app = createApp({ db, providers: {}, now: () => Date.now() + skew, timeControls: [5, SHORT] });
   port = await app.listen(0);
+  const ids = await db
+    .insert(users)
+    .values([{ displayName: 'Ann' }, { displayName: 'Bob', rating: 1620 }, { displayName: 'Cy' }])
+    .returning({ id: users.id });
+  [ANN, BOB, CY] = await Promise.all(ids.map(async ({ id }) => `sid=${await app.sessions.create(id)}`));
 });
 afterAll(() => pool.end());
 
@@ -29,29 +37,37 @@ afterEach(async () => {
   await app.close();
 });
 
-function connect(): Client {
-  const client: Client = io(`http://localhost:${port}`, { transports: ['websocket'], reconnection: false });
+/** A client whose handshake carries `cookie`, as a signed-in browser's would. */
+function connect(cookie: string): Client {
+  const client: Client = io(`http://localhost:${port}`, {
+    transports: ['websocket'],
+    reconnection: false,
+    extraHeaders: { cookie },
+  });
   clients.push(client);
   return client;
 }
 
+/** Why the server refused this client's connection. */
+const refusal = (client: Client) => new Promise<string>((resolve) => client.once('connect_error', (e) => resolve(e.message)));
+
 /** The next `state` this client is sent. Ask for it before causing it. */
 const nextState = (client: Client) => new Promise<RoomState>((resolve) => client.once('state', resolve));
-const create = (client: Client, playerId: string, minutes = 5) =>
-  new Promise<CreateAck>((resolve) => client.emit('create', { playerId, color: 'w', minutes }, resolve));
-const join = (client: Client, roomId: string, playerId: string) =>
-  new Promise<JoinAck>((resolve) => client.emit('join', { roomId, playerId }, resolve));
+const create = (client: Client, minutes = 5) =>
+  new Promise<CreateAck>((resolve) => client.emit('create', { color: 'w', minutes }, resolve));
+const join = (client: Client, roomId: string) =>
+  new Promise<JoinAck>((resolve) => client.emit('join', { roomId }, resolve));
 const move = (client: Client, text: string) =>
   new Promise<MoveAck>((resolve) => client.emit('move', text, resolve));
 
 /** Ann creates a room and plays the first army; Bob joins it. Resolves once both have been told. */
 async function startGame(minutes = 5) {
-  const ann = connect();
-  const bob = connect();
-  const made = await create(ann, ANN, minutes);
+  const ann = connect(ANN);
+  const bob = connect(BOB);
+  const made = await create(ann, minutes);
   if ('error' in made) throw new Error(made.error);
-  await Promise.all([nextState(ann), join(ann, made.roomId, ANN)]);
-  const [annState, bobState] = await Promise.all([nextState(ann), nextState(bob), join(bob, made.roomId, BOB)]);
+  await Promise.all([nextState(ann), join(ann, made.roomId)]);
+  const [annState, bobState] = await Promise.all([nextState(ann), nextState(bob), join(bob, made.roomId)]);
   return { ann, bob, roomId: made.roomId, annState, bobState };
 }
 
@@ -59,6 +75,7 @@ test('two players create a room, join it and trade moves', async () => {
   const { ann, bob, roomId, annState, bobState } = await startGame();
   expect(annState).toMatchObject({ roomId, color: 'w', started: true, opponentOnline: true, moves: [] });
   expect(bobState).toMatchObject({ roomId, color: 'b', started: true, opponentOnline: true, moves: [] });
+  expect(bobState.players).toEqual({ w: { name: 'Ann', rating: 1500 }, b: { name: 'Bob', rating: 1620 } });
 
   const [ack, seenByAnn, seenByBob] = await Promise.all([move(ann, 'e2e4'), nextState(ann), nextState(bob)]);
   expect(ack).toEqual({ ok: true });
@@ -76,18 +93,17 @@ test('a move is refused from the wrong seat, from an outsider, and when it is il
   expect(await move(ann, 'e2e5')).toEqual({ error: 'illegal' });
   expect(await move(ann, 'castle, please')).toEqual({ error: 'bad-request' });
 
-  const cy = connect();
+  const cy = connect(CY);
   expect(await move(cy, 'e2e4')).toEqual({ error: 'not-seated' });
-  expect(await join(cy, roomId, 'cy-player-id')).toEqual({ error: 'full' });
+  expect(await join(cy, roomId)).toEqual({ error: 'full' });
   expect(await move(cy, 'e2e4')).toEqual({ error: 'not-seated' });
 });
 
 test('malformed requests get an answer and change nothing', async () => {
-  const ann = connect();
-  expect(await create(ann, ANN, 7)).toEqual({ error: 'bad-request' }); // not a time control
-  expect(await create(ann, 'short')).toEqual({ error: 'bad-request' });
-  expect(await join(ann, 'not a room', ANN)).toEqual({ error: 'bad-request' });
-  expect(await join(ann, 'abcdefgh', ANN)).toEqual({ error: 'not-found' });
+  const ann = connect(ANN);
+  expect(await create(ann, 7)).toEqual({ error: 'bad-request' }); // not a time control
+  expect(await join(ann, 'not a room')).toEqual({ error: 'bad-request' });
+  expect(await join(ann, 'abcdefgh')).toEqual({ error: 'not-found' });
   const nothing = await new Promise((resolve) => ann.emit('join', null as never, resolve));
   expect(nothing).toEqual({ error: 'bad-request' });
 });
@@ -100,8 +116,8 @@ test('a player who drops is reported, and gets the game back on returning', asyn
   bob.disconnect();
   expect((await dropped).opponentOnline).toBe(false);
 
-  const bobAgain = connect();
-  const [back, seenByAnn] = await Promise.all([nextState(bobAgain), nextState(ann), join(bobAgain, roomId, BOB)]);
+  const bobAgain = connect(BOB);
+  const [back, seenByAnn] = await Promise.all([nextState(bobAgain), nextState(ann), join(bobAgain, roomId)]);
   expect(back).toMatchObject({ color: 'b', moves: ['e2e4'], started: true });
   expect(seenByAnn.opponentOnline).toBe(true);
 });
@@ -109,8 +125,8 @@ test('a player who drops is reported, and gets the game back on returning', asyn
 test('a second tab takes the seat and the first is disconnected', async () => {
   const { ann, bob, roomId } = await startGame();
   const kicked = new Promise<string>((resolve) => ann.once('disconnect', resolve));
-  const tab = connect();
-  const [state, seenByBob] = await Promise.all([nextState(tab), nextState(bob), join(tab, roomId, ANN)]);
+  const tab = connect(ANN);
+  const [state, seenByBob] = await Promise.all([nextState(tab), nextState(bob), join(tab, roomId)]);
   expect(state.color).toBe('w');
   expect(seenByBob.opponentOnline).toBe(true); // the seat never went offline
   expect(await kicked).toBe('io server disconnect');
@@ -118,6 +134,24 @@ test('a second tab takes the seat and the first is disconnected', async () => {
   const [ack, afterMove] = await Promise.all([move(tab, 'e2e4'), nextState(bob)]);
   expect(ack).toEqual({ ok: true });
   expect(afterMove.moves).toEqual(['e2e4']);
+});
+
+test('a connection without a live session is refused', async () => {
+  expect(await refusal(connect(''))).toBe('unauthorized');
+  expect(await refusal(connect('sid=forged'))).toBe('unauthorized');
+});
+
+test('signing out closes every connection of that account, and the opponent sees the seat empty', async () => {
+  const { ann, bob } = await startGame();
+  const annTwo = connect(ANN); // a second tab, not in the room
+  await new Promise<void>((resolve) => annTwo.once('connect', resolve));
+  const closed = Promise.all([ann, annTwo].map((c) => new Promise((resolve) => c.once('disconnect', resolve))));
+  const seenByBob = nextState(bob);
+  const out = await fetch(`http://localhost:${port}/auth/logout`, { method: 'POST', headers: { cookie: ANN } });
+  expect(out.status).toBe(204);
+  await closed;
+  expect((await seenByBob).opponentOnline).toBe(false);
+  expect(await refusal(connect(ANN))).toBe('unauthorized');
 });
 
 test('the flag falls by itself when a clock runs out', async () => {

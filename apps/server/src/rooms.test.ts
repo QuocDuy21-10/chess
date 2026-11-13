@@ -3,6 +3,9 @@ import { beforeEach, expect, test } from 'vitest';
 import { createRooms, timeoutResult, type Rooms } from './rooms.ts';
 
 const MINUTE = 60_000;
+const ANN = { id: 'ann-id', name: 'Ann', rating: 1500 };
+const BOB = { id: 'bob-id', name: 'Bob', rating: 1620 };
+const CY = { id: 'cy-id', name: 'Cy', rating: 1400 };
 let time: number; // the server's clock, moved by hand
 let rooms: Rooms;
 
@@ -11,35 +14,46 @@ beforeEach(() => {
   rooms = createRooms(() => time);
 });
 
-/** A five-minute room with both players in it. `ann` made it and plays the first army. */
+/** A five-minute room with both players in it. Ann made it and plays the first army. */
 function started() {
-  const id = rooms.create('ann', 'w', 5)!;
-  rooms.join(id, 'ann');
-  rooms.join(id, 'bob');
+  const id = rooms.create(ANN, 'w', 5)!;
+  rooms.join(id, ANN);
+  rooms.join(id, BOB);
   return id;
 }
 
 test('the creator holds the seat they chose and the guest gets the other', () => {
-  const id = rooms.create('ann', 'b', 5)!;
+  const id = rooms.create(ANN, 'b', 5)!;
   expect(id).toMatch(/^[\w-]{8}$/);
-  expect(rooms.join(id, 'ann')).toEqual({ color: 'b' });
+  expect(rooms.join(id, ANN)).toEqual({ color: 'b' });
   expect(rooms.state(id, 'b')).toMatchObject({ roomId: id, color: 'b', started: false, moves: [], opponentOnline: false });
-  expect(rooms.join(id, 'bob')).toEqual({ color: 'w' });
-  expect(rooms.state(id, 'b')).toMatchObject({ started: true, opponentOnline: true });
+  expect(rooms.join(id, BOB)).toEqual({ color: 'w' });
+  expect(rooms.state(id, 'b')).toMatchObject({
+    started: true,
+    opponentOnline: true,
+    players: { w: { name: 'Bob', rating: 1620 }, b: { name: 'Ann', rating: 1500 } }, // no user ids
+  });
+});
+
+test('an empty seat has no player, and one account never takes both seats', () => {
+  const id = rooms.create(ANN, 'w', 5)!;
+  expect(rooms.state(id, 'w')?.players).toEqual({ w: { name: 'Ann', rating: 1500 }, b: null });
+  expect(rooms.join(id, { ...ANN, name: 'Ann in another tab' })).toEqual({ color: 'w' });
+  expect(rooms.state(id, 'w')?.started).toBe(false);
 });
 
 test('a third player is refused, and a returning player gets their own seat back', () => {
   const id = started();
-  expect(rooms.join(id, 'cy')).toEqual({ error: 'full' });
-  expect(rooms.join(id, 'bob')).toEqual({ color: 'b' });
-  expect(rooms.join('nowhere1', 'ann')).toEqual({ error: 'not-found' });
+  expect(rooms.join(id, CY)).toEqual({ error: 'full' });
+  expect(rooms.join(id, BOB)).toEqual({ color: 'b' });
+  expect(rooms.join('nowhere1', ANN)).toEqual({ error: 'not-found' });
 });
 
 test('a move is refused before the guest arrives, out of turn, and when chess.js rejects it', () => {
-  const id = rooms.create('ann', 'w', 5)!;
-  rooms.join(id, 'ann');
+  const id = rooms.create(ANN, 'w', 5)!;
+  rooms.join(id, ANN);
   expect(rooms.move(id, 'w', 'e2e4')).toBe('not-started');
-  rooms.join(id, 'bob');
+  rooms.join(id, BOB);
   expect(rooms.move(id, 'b', 'e7e5')).toBe('not-your-turn');
   expect(rooms.move(id, 'w', 'e2e5')).toBe('illegal');
   expect(rooms.move('nowhere1', 'w', 'e2e4')).toBe('not-seated');
@@ -54,11 +68,11 @@ test('legal moves are recorded as chess.js spells them', () => {
 });
 
 test('no clock runs before the guest arrives', () => {
-  const id = rooms.create('ann', 'w', 5)!;
-  rooms.join(id, 'ann');
+  const id = rooms.create(ANN, 'w', 5)!;
+  rooms.join(id, ANN);
   time += MINUTE;
   expect(rooms.deadline(id)).toBeNull();
-  rooms.join(id, 'bob');
+  rooms.join(id, BOB);
   expect(rooms.state(id, 'w')?.clocks).toEqual({ w: 5 * MINUTE, b: 5 * MINUTE });
   expect(rooms.deadline(id)).toBe(5 * MINUTE);
 });
@@ -134,14 +148,14 @@ test('each player is told whether the other is connected', () => {
   rooms.leave(id, 'b');
   expect(rooms.state(id, 'w')?.opponentOnline).toBe(false);
   expect(rooms.state(id, 'b')?.opponentOnline).toBe(true);
-  rooms.join(id, 'bob');
+  rooms.join(id, BOB);
   expect(rooms.state(id, 'w')?.opponentOnline).toBe(true);
 });
 
 test('a room nobody is connected to is deleted after ten minutes', () => {
   const live = started();
   const abandoned = started();
-  const neverEntered = rooms.create('ann', 'w', 5)!;
+  const neverEntered = rooms.create(ANN, 'w', 5)!;
   rooms.leave(abandoned, 'w');
   rooms.leave(abandoned, 'b');
   time += 10 * MINUTE - 1;
@@ -153,6 +167,6 @@ test('a room nobody is connected to is deleted after ten minutes', () => {
 });
 
 test('the server holds at most a thousand rooms', () => {
-  for (let i = 0; i < 1000; i++) expect(rooms.create('ann', 'w', 5)).not.toBeNull();
-  expect(rooms.create('ann', 'w', 5)).toBeNull();
+  for (let i = 0; i < 1000; i++) expect(rooms.create(ANN, 'w', 5)).not.toBeNull();
+  expect(rooms.create(ANN, 'w', 5)).toBeNull();
 });

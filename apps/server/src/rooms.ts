@@ -1,15 +1,20 @@
 import { randomBytes } from 'node:crypto';
-import type { MoveError, RoomState } from '@chess/shared/protocol';
+import type { MoveError, Player, RoomState } from '@chess/shared/protocol';
 import { gameResult, type Result } from '@chess/shared/result';
 import { Chess, type Color } from 'chess.js';
 
 const MAX_ROOMS = 1000;
 const IDLE_MS = 10 * 60_000; // how long a room lives with nobody connected to it
 
+/** A signed-in player in a seat. `id` is their user id. */
+export interface SeatPlayer extends Player {
+  id: string;
+}
+
 interface Room {
   chess: Chess; // the position the server trusts
   moves: string[]; // coordinate form, as chess.js spells them
-  seats: Record<Color, string | null>; // the playerId in each seat
+  seats: Record<Color, SeatPlayer | null>;
   online: Record<Color, boolean>;
   left: Record<Color, number>; // milliseconds on each clock, as of `since`
   since: number | null; // when the running clock started; null while no clock runs
@@ -18,6 +23,8 @@ interface Room {
 }
 
 const COLORS: Color[] = ['w', 'b'];
+/** What both players are told about a seat: never the user id. */
+const shown = (seat: SeatPlayer | null): Player | null => seat && { name: seat.name, rating: seat.rating };
 const other = (color: Color): Color => (color === 'w' ? 'b' : 'w');
 
 /** The result when `flagged` runs out of time: a win for the other side, unless that side cannot mate. */
@@ -56,12 +63,12 @@ export function createRooms(now: () => number = Date.now) {
   }
 
   return {
-    /** Makes a room with `playerId` in the `color` seat. Returns its id, or null when the server is full. */
-    create(playerId: string, color: Color, minutes: number): string | null {
+    /** Makes a room with `player` in the `color` seat. Returns its id, or null when the server is full. */
+    create(player: SeatPlayer, color: Color, minutes: number): string | null {
       if (rooms.size >= MAX_ROOMS) return null;
       const id = randomBytes(6).toString('base64url'); // 8 URL-safe characters
       const seats: Room['seats'] = { w: null, b: null };
-      seats[color] = playerId;
+      seats[color] = player;
       const ms = minutes * 60_000;
       rooms.set(id, {
         chess: new Chess(),
@@ -76,15 +83,18 @@ export function createRooms(now: () => number = Date.now) {
       return id;
     },
 
-    /** Seats a player: in their own seat if they hold one, otherwise in the free one. Marks them connected. */
-    join(roomId: string, playerId: string): { color: Color } | { error: 'not-found' | 'full' } {
+    /**
+     * Seats a player: in their own seat if they hold one, otherwise in the free one, so one account never holds
+     * both. Marks them connected.
+     */
+    join(roomId: string, player: SeatPlayer): { color: Color } | { error: 'not-found' | 'full' } {
       const room = rooms.get(roomId);
       if (!room) return { error: 'not-found' };
-      let color = COLORS.find((c) => room.seats[c] === playerId);
+      let color = COLORS.find((c) => room.seats[c]?.id === player.id);
       if (!color) {
         color = COLORS.find((c) => room.seats[c] === null);
         if (!color) return { error: 'full' };
-        room.seats[color] = playerId;
+        room.seats[color] = player;
         room.since = now(); // the second player has arrived: the first army's clock starts
       }
       room.online[color] = true;
@@ -162,6 +172,7 @@ export function createRooms(now: () => number = Date.now) {
         clocks,
         result: room.result,
         opponentOnline: room.online[other(color)],
+        players: { w: shown(room.seats.w), b: shown(room.seats.b) },
       };
     },
 

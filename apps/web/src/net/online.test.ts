@@ -1,5 +1,5 @@
 import { createApp } from '@chess/server/app';
-import { connectTest } from '@chess/server/test-db';
+import { connectTest, truncate } from '@chess/server/test-db';
 import type { ClientEvents, CreateAck, RoomState, ServerEvents } from '@chess/shared/protocol';
 import { io, type Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
@@ -10,7 +10,17 @@ import { useOnline } from './online';
 
 type Client = Socket<ServerEvents, ClientEvents>;
 
-const BOB = 'bob-player-id';
+const me = vi.hoisted(() => ({ cookie: '' })); // this device's sid cookie
+vi.mock('socket.io-client', async (importOriginal) => {
+  const real = await importOriginal<typeof import('socket.io-client')>();
+  // A browser sends its cookie with the handshake; Node has no cookie jar, so the store's socket gets it here.
+  // A socket that names its own headers (Bob's) keeps them.
+  type Options = Parameters<typeof real.io>[1];
+  const io = ((url: string, options: Options = {}) =>
+    real.io(url, { extraHeaders: { cookie: me.cookie }, ...options })) as typeof real.io;
+  return { ...real, io };
+});
+
 const online = () => useOnline.getState();
 const game = () => useGame.getState();
 const stored = new Map<string, string>();
@@ -19,13 +29,27 @@ let app: ReturnType<typeof createApp>;
 let port: number;
 let skew: number; // milliseconds added to the server's clock
 let bob: Client;
+let bobCookie: string;
 const { pool, db } = connectTest();
 afterAll(() => pool.end());
 
+/** A new user with a session. Returns their sid cookie. */
+async function signUp(name: string) {
+  const { rows } = await pool.query('INSERT INTO users (display_name) VALUES ($1) RETURNING id', [name]);
+  return `sid=${await app.sessions.create(rows[0].id)}`;
+}
+
+/** A bare client signed in as `cookie`. */
+const connectAs = (cookie: string): Client =>
+  io(`http://localhost:${port}`, { transports: ['websocket'], reconnection: false, extraHeaders: { cookie } });
+
 beforeEach(async () => {
   skew = 0;
+  await truncate(pool);
   app = createApp({ db, providers: {}, now: () => Date.now() + skew });
   port = await app.listen(0);
+  me.cookie = await signUp('Me');
+  bobCookie = await signUp('Bob');
   stored.clear();
   replaceState.mockClear();
   vi.stubEnv('NEXT_PUBLIC_SERVER_URL', `http://localhost:${port}`);
@@ -35,7 +59,7 @@ beforeEach(async () => {
     getItem: (name: string) => stored.get(name) ?? null,
     setItem: (name: string, value: string) => void stored.set(name, value),
   });
-  bob = io(`http://localhost:${port}`, { transports: ['websocket'], reconnection: false });
+  bob = connectAs(bobCookie);
 });
 
 afterEach(async () => {
@@ -51,8 +75,7 @@ async function until(condition: () => boolean) {
   while (!condition()) await new Promise((resolve) => setTimeout(resolve, 10));
 }
 
-const bobJoins = (roomId: string, playerId = BOB) =>
-  new Promise((resolve) => bob.emit('join', { roomId, playerId }, resolve));
+const bobJoins = (roomId: string) => new Promise((resolve) => bob.emit('join', { roomId }, resolve));
 const bobMoves = (move: string) => new Promise((resolve) => bob.emit('move', move, resolve));
 
 /** This device creates a room and plays the first army; Bob joins it. */
@@ -107,7 +130,7 @@ test('a created room waits for an opponent, then both sides play', async () => {
 
 test('a room joined from a link gives the free seat', async () => {
   const made = await new Promise<CreateAck>((resolve) =>
-    bob.emit('create', { playerId: BOB, color: 'w', minutes: 5 }, resolve),
+    bob.emit('create', { color: 'w', minutes: 5 }, resolve),
   );
   if ('error' in made) throw new Error(made.error);
   await bobJoins(made.roomId);
@@ -127,6 +150,13 @@ test('a room that does not exist returns to the menu with the reason', async () 
   await until(() => online().error !== null);
   expect(online()).toMatchObject({ status: 'off', roomId: null, error: 'not-found' });
   expect(game().seat).toBeNull();
+});
+
+test('without a session the menu is told to sign in', async () => {
+  me.cookie = '';
+  online().create(5);
+  await until(() => online().error !== null);
+  expect(online()).toMatchObject({ status: 'off', roomId: null, error: 'signed-out' });
 });
 
 test('a server that cannot be reached is reported', async () => {
@@ -163,8 +193,8 @@ test('a dropped connection locks the board, then picks the game up where the ser
 test('when the same player joins from another tab, this one returns to the menu', async () => {
   const roomId = await startGame();
   bob.disconnect();
-  const tab: Client = io(`http://localhost:${port}`, { transports: ['websocket'], reconnection: false });
-  tab.emit('join', { roomId, playerId: stored.get('chess.player')! }, () => {});
+  const tab = connectAs(me.cookie);
+  tab.emit('join', { roomId }, () => {});
   await until(() => online().error !== null);
   expect(online()).toMatchObject({ status: 'off', error: 'replaced' });
   tab.disconnect();

@@ -5,7 +5,7 @@ import { Server } from 'socket.io';
 import { apiRoutes } from './api.ts';
 import { authRoutes } from './auth.ts';
 import type { Db } from './db.ts';
-import { attachGame, type GameServer } from './game.ts';
+import { attachGame, userRoom, type GameServer } from './game.ts';
 import { createHttpApp } from './http.ts';
 import type { Provider, ProviderName } from './providers.ts';
 import { createSessions } from './sessions.ts';
@@ -33,14 +33,16 @@ export function createApp({
   timeControls = TIME_CONTROLS,
 }: Options) {
   const sessions = createSessions(db, now);
-  const auth = authRoutes({ db, sessions, providers, webUrl, secure });
+  // Signing out closes every game connection of that account; `io` exists by the time anyone signs out.
+  const onLogout = (userId: string) => io.in(userRoom(userId)).disconnectSockets(true);
+  const auth = authRoutes({ db, sessions, providers, webUrl, secure, onLogout });
   // Socket.IO answers /socket.io/ on this server before Express sees the request.
   const http = createServer(createHttpApp(origins, [auth, apiRoutes({ db, sessions })]));
   const io: GameServer = new Server(http, {
     cors: { origin: origins, credentials: true },
     maxHttpBufferSize: 10_000,
   });
-  const game = attachGame(io, { now, timeControls });
+  const game = attachGame(io, { sessions, now, timeControls });
   const sweeper = setInterval(() => {
     sessions.sweep().catch((error) => console.error('Session sweep failed:', error));
   }, SESSION_SWEEP_MS);

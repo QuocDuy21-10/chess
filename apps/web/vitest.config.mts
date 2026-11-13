@@ -10,5 +10,8 @@ try {
 
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  test: { environment: 'node' },
+  test: {
+    environment: 'node',
+    globalSetup: ['../server/vitest.setup.ts'], // migrates the test database online.test.ts uses
+  },
 });
