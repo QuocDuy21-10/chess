@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { sanitize, useSettings } from './settings';
 
-const DEFAULTS = { lang: 'en', side: 'w', musicVolume: 1, sfxVolume: 1, muted: false } as const;
+const DEFAULTS = {
+  lang: 'en',
+  side: 'w',
+  musicVolume: 1,
+  sfxVolume: 1,
+  muted: false,
+  computerLevel: 'easy',
+  computerMinutes: 0,
+} as const;
 const stored = new Map<string, string>();
 
 beforeEach(() => {
@@ -56,4 +64,15 @@ test('blocked storage does not break the settings', async () => {
   expect(useSettings.getState().muted).toBe(true);
   await useSettings.persist.rehydrate();
   expect(useSettings.getState()).toMatchObject(DEFAULTS);
+});
+
+test("the computer's level and time are kept when valid, and fall back otherwise", () => {
+  expect(sanitize({ computerLevel: 'hard', computerMinutes: 10 })).toMatchObject({
+    computerLevel: 'hard',
+    computerMinutes: 10,
+  });
+  expect(sanitize({ computerLevel: 'grandmaster', computerMinutes: 7 })).toMatchObject({
+    computerLevel: 'easy',
+    computerMinutes: 0,
+  });
 });

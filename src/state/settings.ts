@@ -2,6 +2,7 @@ import type { Color } from 'chess.js';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { setMuted, setVolume } from '@/audio/audio';
+import { COMPUTER_TIMES, LEVELS, type Level } from '@/engine/levels';
 
 export type Lang = 'en' | 'vi';
 
@@ -11,6 +12,8 @@ interface Values {
   musicVolume: number; // 0 to 1
   sfxVolume: number; // 0 to 1
   muted: boolean;
+  computerLevel: Level; // the strength last chosen against the computer
+  computerMinutes: number; // the time a side last chosen against the computer; 0: no clock
 }
 
 interface Settings extends Values {
@@ -31,6 +34,8 @@ export function sanitize(stored: unknown): Values {
     musicVolume: volume(s.musicVolume),
     sfxVolume: volume(s.sfxVolume),
     muted: s.muted === true,
+    computerLevel: LEVELS.includes(s.computerLevel as Level) ? (s.computerLevel as Level) : 'easy',
+    computerMinutes: COMPUTER_TIMES.includes(s.computerMinutes as number) ? (s.computerMinutes as number) : 0,
   };
 }
 
@@ -68,6 +73,8 @@ export const useSettings = create<Settings>()(
       musicVolume: 1,
       sfxVolume: 1,
       muted: false,
+      computerLevel: 'easy',
+      computerMinutes: 0,
       update: (patch) => set(patch),
     }),
     {
