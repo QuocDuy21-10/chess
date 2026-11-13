@@ -20,6 +20,20 @@ interface Room {
 const COLORS: Color[] = ['w', 'b'];
 const other = (color: Color): Color => (color === 'w' ? 'b' : 'w');
 
+/** The result when `flagged` runs out of time: a win for the other side, unless that side cannot mate. */
+export function timeoutResult(chess: Chess, flagged: Color): Result {
+  const winner = other(flagged);
+  const pieces = chess
+    .board()
+    .flat()
+    .filter((square) => square?.color === winner)
+    .map((square) => square!.type);
+  // shortcut: a king, or a king and one minor piece, stands for FIDE's "no legal sequence can mate";
+  // upgrade if players report a draw that should have been a win.
+  const cannotMate = pieces.length === 1 || (pieces.length === 2 && pieces.some((type) => type === 'b' || type === 'n'));
+  return cannotMate ? { reason: 'timeout-insufficient' } : { reason: 'timeout', winner };
+}
+
 /** Every room on this server. Knows nothing about sockets. `now` is passed in so tests can move the clock. */
 export function createRooms(now: () => number = Date.now) {
   const rooms = new Map<string, Room>();
@@ -30,9 +44,7 @@ export function createRooms(now: () => number = Date.now) {
     if (room.since === null || at - room.since < room.left[turn]) return;
     room.left[turn] = 0;
     room.since = null;
-    // shortcut: a flag is always a win, even when the winner has no mating material, which the full
-    // rules call a draw. Upgrade when games are rated.
-    room.result = { reason: 'timeout', winner: other(turn) };
+    room.result = timeoutResult(room.chess, turn);
   }
 
   /** Why nobody can act in this room right now, or null when the game is live. Charges nothing. */

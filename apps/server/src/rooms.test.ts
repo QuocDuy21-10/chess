@@ -1,5 +1,6 @@
+import { Chess } from 'chess.js';
 import { beforeEach, expect, test } from 'vitest';
-import { createRooms, type Rooms } from './rooms.ts';
+import { createRooms, timeoutResult, type Rooms } from './rooms.ts';
 
 const MINUTE = 60_000;
 let time: number; // the server's clock, moved by hand
@@ -84,6 +85,19 @@ test('a clock that reaches zero ends the game for the other side', () => {
     clocks: { w: 0, b: 5 * MINUTE },
   });
   expect(rooms.deadline(id)).toBeNull();
+});
+
+test('running out of time against a side that cannot mate is a draw', () => {
+  const loneKing = new Chess('4k3/8/8/8/8/8/4P3/4K3 w - - 0 1');
+  expect(timeoutResult(loneKing, 'w')).toEqual({ reason: 'timeout-insufficient' });
+  const kingAndKnight = new Chess('4k3/8/2n5/8/8/8/4P3/4K3 w - - 0 1');
+  expect(timeoutResult(kingAndKnight, 'w')).toEqual({ reason: 'timeout-insufficient' });
+  const kingAndRook = new Chess('4k3/8/2r5/8/8/8/8/4K3 w - - 0 1');
+  expect(timeoutResult(kingAndRook, 'w')).toEqual({ reason: 'timeout', winner: 'b' });
+  const kingAndPawn = new Chess('4k3/4p3/8/8/8/8/8/4K3 w - - 0 1');
+  expect(timeoutResult(kingAndPawn, 'w')).toEqual({ reason: 'timeout', winner: 'b' });
+  const lonelyFlagger = new Chess('4k3/4p3/8/8/8/8/8/4K3 b - - 0 1'); // black flags with a pawn; white has only a king
+  expect(timeoutResult(lonelyFlagger, 'b')).toEqual({ reason: 'timeout-insufficient' });
 });
 
 test('a move made after the flag fell is refused even if the timer never ran', () => {
