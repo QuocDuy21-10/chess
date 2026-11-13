@@ -25,8 +25,8 @@ test('two browsers play online through the real server, and the game reaches the
 
   // force: on a CI runner the software-rendered scene starves animation frames, so the stability check never passes
   await page.getByRole('button', { name: 'Main menu' }).click({ force: true });
-  await page.getByRole('button', { name: 'Play online' }).click();
-  await page.getByRole('button', { name: 'Profile' }).click();
+  await page.getByRole('button', { name: 'Play online' }).click({ force: true });
+  await page.getByRole('button', { name: 'Profile' }).click({ force: true });
   await expect(page.getByText('Win · E2E Bob').first()).toBeVisible(); // the opponent in the match history
   expect(bobProblems).toEqual([]);
   await bobContext.close();
