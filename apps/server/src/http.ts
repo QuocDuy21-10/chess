@@ -40,9 +40,16 @@ export function sameSiteOnly(origins: string[] | true): RequestHandler {
   };
 }
 
-/** Logs the error and answers without its details, which may name files or data. */
+/**
+ * A client's mistake that Express or body-parser caught (bad JSON, a body too large) keeps its 4xx status.
+ * Anything else is logged and answered without its details, which may name files or data.
+ */
 export const onError: ErrorRequestHandler = (error, _req, res, next) => {
   if (res.headersSent) return next(error); // the response has started: only Express can end it
+  const status: unknown = error?.status;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    return void res.status(status).json({ error: 'bad-request' });
+  }
   console.error(error);
   res.status(500).json({ error: 'internal' });
 };

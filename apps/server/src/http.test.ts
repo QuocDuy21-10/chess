@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { expect, test, vi } from 'vitest';
 import { onError } from './http.ts';
 
-// No route can fail yet, so the error handler is called directly with a stand-in response.
+// The error handler, called directly with a stand-in response.
 
 function fakeResponse(headersSent = false) {
   const res = {
@@ -29,6 +29,16 @@ test('an error in a handler is logged and answered with a bare 500', () => {
   expect(res.statusCode).toBe(500);
   expect(res.body).toEqual({ error: 'internal' }); // the message stays on the server
   expect(log).toHaveBeenCalledWith(error);
+  log.mockRestore();
+});
+
+test("a client's mistake keeps its status and is not logged", () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const res = fakeResponse();
+  onError(Object.assign(new Error('request entity too large'), { status: 413 }), {} as Request, res as unknown as Response, vi.fn());
+  expect(res.statusCode).toBe(413);
+  expect(res.body).toEqual({ error: 'bad-request' });
+  expect(log).not.toHaveBeenCalled();
   log.mockRestore();
 });
 

@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { TIME_CONTROLS } from '@chess/shared/protocol';
 import { Server } from 'socket.io';
+import { apiRoutes } from './api.ts';
 import { authRoutes } from './auth.ts';
 import type { Db } from './db.ts';
 import { attachGame, type GameServer } from './game.ts';
@@ -34,7 +35,7 @@ export function createApp({
   const sessions = createSessions(db, now);
   const auth = authRoutes({ db, sessions, providers, webUrl, secure });
   // Socket.IO answers /socket.io/ on this server before Express sees the request.
-  const http = createServer(createHttpApp(origins, [auth]));
+  const http = createServer(createHttpApp(origins, [auth, apiRoutes({ db, sessions })]));
   const io: GameServer = new Server(http, {
     cors: { origin: origins, credentials: true },
     maxHttpBufferSize: 10_000,
