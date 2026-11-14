@@ -253,10 +253,20 @@ If 3 fails, the triangle target and texture size come down until it fits.
 - The three criteria: (1) the magenta-repainted cloth recolours cleanly to red and blue; (2) attack and death read
   well at 700 ms each; (3) `pawn-2.glb` is 163,320 bytes. `pawn-1.glb` is skipped: a local stand-in once had that
   name and may sit in a browser cache for a year.
-- Sub-project C should start by choosing between Meshy on a paid plan and KayKit (or another CC0 set) for the
+- Sub-project C started by choosing between Meshy on a paid plan and KayKit (or another CC0 set) for the
   other five pieces.
 - Two corrections the pilot forced: GLTFLoader fetches a model's embedded textures from `blob:` URLs, so the CSP's
   `connect-src` now allows `blob:` (the "no CSP change" note above was wrong); and on a CPU WebGL renderer
   (SwiftShader, llvmpipe — as in headless Chromium and on CI) the scene drew about 3 frames a second, so there it now
   renders at half resolution without shadows (`scene/renderer.ts`), about 7.5 frames a second; GPUs are unchanged.
   The Knight's nine body meshes are joined into one, so a pawn costs three draw calls.
+
+## Sub-project C outcome (2026-11-14)
+
+The owner chose KayKit for the other five pieces, every one a character (no horse or tower exists in the pack):
+knight = Ranger with a bow, bishop = Mage with a staff (the pointed hat recalls the bishop's mitre), rook =
+Rogue_Hooded with a dagger, queen = Rogue with a crossbow, king = Barbarian with an axe and a round shield (the
+bear pelt takes the team colour). `scripts/kaykit-pawn.ts` became `scripts/kaykit-piece.ts`, one table for all six;
+the pawn rebuilds byte for byte. The design table above (cleft hat, siege tower, crowns) is not what shipped.
+All six models together are about 1.05 MB. With every piece a skinned character, headless Chromium on the CPU
+renderer draws about 4.5 frames a second under load; all E2E tests pass in the three browsers.
