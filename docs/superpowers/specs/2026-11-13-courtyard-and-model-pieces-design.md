@@ -270,3 +270,6 @@ bear pelt takes the team colour). `scripts/kaykit-pawn.ts` became `scripts/kayki
 the pawn rebuilds byte for byte. The design table above (cleft hat, siege tower, crowns) is not what shipped.
 All six models together are about 1.05 MB. With every piece a skinned character, headless Chromium on the CPU
 renderer draws about 4.5 frames a second under load; all E2E tests pass in the three browsers.
+Clips checked for all six models: in a played game the king's axe chop, the rook's stab, the bishop's staff cast,
+the queen's crossbow and the knight's fall (Death_B) were seen; and in each file's data the death clip lowers the
+hips by 45–63% and the attack clip swings an arm by 51–109°.
