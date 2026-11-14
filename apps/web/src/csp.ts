@@ -29,7 +29,8 @@ export function contentSecurityPolicy({ serverUrl, sentryDsn }: { serverUrl?: st
     "media-src 'self'",
     "font-src 'self'",
     "worker-src 'self'",
-    ["connect-src 'self'", server, server.replace(/^http/, 'ws'), report?.origin].filter(Boolean).join(' '),
+    // blob: GLTFLoader fetches a model's embedded textures from blob: URLs it creates itself
+    ["connect-src 'self' blob:", server, server.replace(/^http/, 'ws'), report?.origin].filter(Boolean).join(' '),
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
