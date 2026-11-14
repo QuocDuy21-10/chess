@@ -11,6 +11,7 @@ import { CameraRig } from './CameraRig';
 import { Courtyard } from './Courtyard';
 import { PieceActor } from './Piece';
 import { MODELS } from './pieces/models';
+import { probeWebGL } from './renderer';
 import { PALETTE } from './theme';
 import { tickTweens } from './tween';
 
@@ -22,14 +23,6 @@ function TweenTicker() {
   return null;
 }
 
-function hasWebGL() {
-  try {
-    return !!document.createElement('canvas').getContext('webgl2');
-  } catch {
-    return false;
-  }
-}
-
 /** Loaded with ssr: false, so `document` is always available here. */
 export default function Scene() {
   const pieces = useGame((s) => s.pieces);
@@ -37,7 +30,7 @@ export default function Scene() {
   const side = useSettings((s) => s.side);
   const seat = useGame((s) => s.seat);
   const lightZ = (seat ?? side) === 'w' ? 6 : -6; // the key light stays on the camera's side
-  const [webgl] = useState(hasWebGL);
+  const [{ webgl, software }] = useState(probeWebGL);
   const t = useT();
 
   if (!webgl) {
@@ -49,7 +42,8 @@ export default function Scene() {
   }
 
   return (
-    <Canvas shadows onPointerMissed={() => select(null)}>
+    // On a CPU renderer every pixel is costly: draw at a lower resolution and without shadows, to stay playable.
+    <Canvas shadows={!software} dpr={software ? 0.5 : [1, 2]} onPointerMissed={() => select(null)}>
       <color attach="background" args={[PALETTE.background]} />
       <fog attach="fog" args={[PALETTE.background, 18, 45]} />
       <hemisphereLight args={[PALETTE.skyFill, PALETTE.earth, 0.8]} />
