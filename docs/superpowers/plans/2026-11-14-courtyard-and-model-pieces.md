@@ -1364,3 +1364,19 @@ If any fails, apply the spec's fallback for it only after asking the owner.
 git add e2e/local.spec.ts apps/web/src/ui/i18n.ts apps/web/src/ui/Settings.tsx apps/web/bundle-budget.json
 git commit -m "feat: credit the Meshy models in Settings, and check in E2E that every model loads"
 ```
+
+---
+
+## Outcome (2026-11-14)
+
+Tasks 1–6, 8 and 9 shipped as written, with two changes the pilot forced, both decided by the owner:
+
+- **Task 7.** Meshy's free plan made the pawn but no longer lets a free account download any model, and the owner
+  declined to pay. The pawn is KayKit's CC0 Knight instead, built by `scripts/kaykit-piece.ts` (the plan's
+  `merge-clips.ts` was never needed). The owner then had the other five pieces made the same way (sub-project C).
+- **Task 9.** The Settings line credits KayKit, CC0 ("3D pieces: KayKit by Kay Lousberg (kaylousberg.com), CC0."),
+  not Meshy, CC BY 4.0, and links the CC0 deed.
+
+The pilot criteria were met: clean recolour, attack and death clips seen in play and checked in each file's data,
+every model under 200 KB. Two fixes the pilot exposed are in: `blob:` in the CSP's `connect-src`, and a lighter
+render path on CPU WebGL renderers. Details are in the spec's "Pilot outcome" and "Sub-project C outcome".
