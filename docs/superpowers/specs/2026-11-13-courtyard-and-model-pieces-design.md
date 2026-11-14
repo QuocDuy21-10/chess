@@ -240,3 +240,23 @@ If 3 fails, the triangle target and texture size come down until it fits.
 - Meshy's free credits (about 100 a month) may not cover six pieces with retries; C may take more than one month.
 - Meshy's library may lack a fitting attack or death clip for some pieces; those fall back to whole-model poses.
 - Thirty-two skinned pieces at about 8k triangles each is about 256k triangles; low-end phones are checked in the pilot.
+
+## Pilot outcome (2026-11-14)
+
+- Meshy's free plan made the pawn (text to image with Nano Banana, image to 3D, texture, remesh to 9,927 faces,
+  humanoid rig) but no longer lets a free account download any model, nor add library clips (403). Paying was
+  declined.
+- The owner chose a CC0 model instead: the pawn is KayKit's `Knight` (Kay Lousberg) with `sword_1handed` and
+  `shield_badge_color`, and the clips `Idle_A`, `Walking_A`, `Melee_1H_Attack_Chop`, `Death_A` from KayKit Character
+  Animations. `scripts/kaykit-pawn.ts` builds it; it is not the kettle-hat design above. Credits are in
+  `public/models/CREDITS.md` and Settings (CC0: optional).
+- The three criteria: (1) the magenta-repainted cloth recolours cleanly to red and blue; (2) attack and death read
+  well at 700 ms each; (3) `pawn-2.glb` is 163,320 bytes. `pawn-1.glb` is skipped: a local stand-in once had that
+  name and may sit in a browser cache for a year.
+- Sub-project C should start by choosing between Meshy on a paid plan and KayKit (or another CC0 set) for the
+  other five pieces.
+- Two corrections the pilot forced: GLTFLoader fetches a model's embedded textures from `blob:` URLs, so the CSP's
+  `connect-src` now allows `blob:` (the "no CSP change" note above was wrong); and on a CPU WebGL renderer
+  (SwiftShader, llvmpipe — as in headless Chromium and on CI) the scene drew about 3 frames a second, so there it now
+  renders at half resolution without shadows (`scene/renderer.ts`), about 7.5 frames a second; GPUs are unchanged.
+  The Knight's nine body meshes are joined into one, so a pawn costs three draw calls.
