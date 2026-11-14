@@ -88,12 +88,12 @@ export function Settings({ onClose }: { onClose: () => void }) {
           </a>
         </p>
 
-        {/* The models are CC BY 4.0, which asks for credit where they are shown. */}
+        {/* KayKit is CC0: no credit is required; this one is thanks. */}
         {Object.keys(MODELS).length > 0 && (
           <p className="text-xs text-stone-400">
             {t.modelCredit}{' '}
             <a
-              href="https://creativecommons.org/licenses/by/4.0/"
+              href="https://creativecommons.org/publicdomain/zero/1.0/"
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-11 items-center underline"

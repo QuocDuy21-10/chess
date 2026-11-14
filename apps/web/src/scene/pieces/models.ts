@@ -9,7 +9,9 @@ export interface Clips {
 }
 
 /** Piece types drawn from a .glb model. A type not listed here uses its model built in code. */
-export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>> = {};
+export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>> = {
+  p: { url: '/models/pawn-2.glb', clips: { idle: 'idle', walk: 'walk', attack: 'attack', die: 'die' } },
+};
 
 /** A model is scaled to this height, in squares. */
 export const HEIGHT: Record<PieceSymbol, number> = { p: 0.9, n: 1.2, b: 1.25, r: 1.3, q: 1.4, k: 1.55 };
