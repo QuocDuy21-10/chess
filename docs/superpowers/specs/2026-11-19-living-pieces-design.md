@@ -151,5 +151,6 @@ One change outside the models, approved with the plan: footfall sounds play as e
 Checked in the running game (two-player, 1. Nc3 d5 2. Nxd5 Qxd5 3. e4 Qxa2 4. Rxa2 Bf5 5. exf5, frames sampled from the
 canvas): the knight's hop and strike, the pawn, knight, queen and bishop deaths, the rook's slam and the queen's
 attack all play; red and blue recolour cleanly with the gold untouched; every model loads. The king is never captured,
-so its death was checked in the preview render only. Not measured: the frame rate on the CPU renderer. Not run here:
-`online.test.ts` and the E2E suite, both of which need the Postgres container (Docker was not running).
+so its death was checked in the preview render only. Not measured: the frame rate on the CPU renderer. With Postgres
+up, `npm test` passes (server 103, web 162, shared 18) and the E2E suite passes on a production build (15 tests in
+Chromium, Firefox and WebKit).
