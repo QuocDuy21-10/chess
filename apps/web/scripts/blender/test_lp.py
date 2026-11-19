@@ -62,6 +62,15 @@ class Motion(unittest.TestCase):
         self.assertAlmostEqual(lp.bounce(0.25, 0.1, 0, 0).translation.z, 0.1)
 
 
+class Materials(unittest.TestCase):
+    def test_only_team_is_magenta_to_the_game_shader(self):
+        for name, (colour, *_) in lp.MATERIALS.items():
+            if name == 'team':
+                self.assertGreater(lp.keyed(colour), 0.35)
+            else:
+                self.assertLess(lp.keyed(colour), 0.1, name)
+
+
 class Geometry(unittest.TestCase):
     def test_spline_passes_through_its_points(self):
         points = [(0, 0), (1, 0), (1, 0), (1, 1), (0, 2)]
@@ -117,8 +126,9 @@ class Geometry(unittest.TestCase):
         self.assertAlmostEqual(max(xs) - min(xs), 0.2, delta=1e-6)
 
 
-def toy(attack_end=0.0):
-    """A cylinder in two shards on a body bone, with simple clips; `attack_end` leaves the attack off rest."""
+def toy(attack_end=0.0, hit_lean=0.0):
+    """A cylinder in two shards on a body bone, with simple clips; `attack_end` leaves the attack off rest, and
+    `hit_lean` makes the hit end off rest, where the die (which starts at rest) does not follow it."""
     body = lp.lathe([(0, 0), (0.3, 0), (0.3, 0), (0.3, 1), (0.3, 1), (0, 1)])
     low, high = lp.halves(body, (0, 0, 0.5), (0, 0, 1))
     parts = [lp.Part(low, 'team', 'low'), lp.Part(high, 'trim', 'high')]
@@ -127,6 +137,7 @@ def toy(attack_end=0.0):
         'idle': (24, lambda t: {'body': lp.move(z=0.02 * (1 - math.cos(math.tau * t)))}),
         'walk': (24, lambda u: {'body': lp.bounce(u, 0.1, 0.1, 0.05)}),
         'attack': (30, lambda t: {'body': lp.tip(lp.ease(t, 0, -0.1, -0.2, 0.3, 0.05, attack_end), 0.3)}),
+        'hit': (9, lambda t: {'body': lp.tip(-hit_lean * t, 0.3)}),
         'die': (30, lp.crumble(parts, parent, 0.3, ['low', 'high'])),
     }
     return lp.Piece(parts, parent, clips, 0.3)
@@ -162,6 +173,21 @@ class Rig(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, 'attack does not end at rest'):
             lp.check(*built(piece), piece)
 
+    def test_check_rejects_a_death_that_does_not_start_where_the_hit_ends(self):
+        piece = toy(hit_lean=0.1)
+        with self.assertRaisesRegex(AssertionError, 'die does not start where hit ends'):
+            lp.check(*built(piece), piece)
+
+    def test_check_rejects_a_part_the_game_would_paint_the_team_colour(self):
+        piece = toy()
+        lp.MATERIALS['purple'] = (lp.srgb('#9933CC'), 0.0, 0.5, 0.0)
+        try:
+            piece.parts[1].material = 'purple'
+            with self.assertRaisesRegex(AssertionError, 'GlbPiece would paint purple the team colour'):
+                lp.check(*built(piece), piece)
+        finally:
+            del lp.MATERIALS['purple']
+
     def test_a_falling_shard_lands_on_the_floor_and_never_sinks(self):
         piece = toy()
         shard = lp.shards_of(piece.parts, piece.parent, ['high'])[0]
@@ -180,7 +206,11 @@ class Rig(unittest.TestCase):
         points = [v.co for p in piece.parts for v in p.mesh.verts]
         self.assertAlmostEqual(lp.topple_angle(points, 0.3), math.pi / 2, delta=0.02)
 
-    def test_export_writes_the_four_clips_with_unique_node_names(self):
+    def test_assemble_adds_only_the_materials_its_parts_use(self):
+        obj, _ = built(toy())
+        self.assertEqual([m.name for m in obj.data.materials], ['team', 'trim'])
+
+    def test_export_writes_every_clip_with_unique_node_names(self):
         piece = toy()
         built(piece)
         path = os.path.join(tempfile.mkdtemp(), 'toy.glb')
