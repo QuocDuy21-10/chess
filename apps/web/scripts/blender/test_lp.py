@@ -222,7 +222,10 @@ class Rig(unittest.TestCase):
 
 
 def run():
-    result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__]))
+    import test_figure  # noqa: E402  figure.py's tests run in the same Blender session
+    loader = unittest.defaultTestLoader
+    suite = unittest.TestSuite([loader.loadTestsFromModule(sys.modules[__name__]), loader.loadTestsFromModule(test_figure)])
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
     if not result.wasSuccessful():
         raise RuntimeError('lp tests failed')  # --python-exit-code 1 turns this into exit status 1
 
