@@ -121,3 +121,35 @@ line in Settings are updated once no KayKit model ships.
 
 Hit and victory clips, particles or dust, animated emission, new sounds, sequencer or timing changes, humanoid
 characters.
+
+## Outcome (2026-11-19)
+
+All six pieces are living Staunton pieces built by `scripts/blender/living_pieces.py`; no KayKit model ships, so the
+Settings credit and `scripts/kaykit-piece.ts` are gone. The owner approved the pawn pilot before the other five.
+
+| File | Bytes | Bones |
+|---|---|---|
+| `pawn-3.glb` | 63,016 | 9 |
+| `rook-2.glb` | 72,484 | 14 |
+| `bishop-3.glb` | 53,744 | 3 |
+| `queen-2.glb` | 94,596 | 10 |
+| `king-3.glb` | 71,124 | 8 |
+| `knight-2.glb` | 64,044 | 10 |
+
+418 KB in all (the KayKit set was about 1.05 MB). Every build passed the clip-contract check first time; changes made
+by eye after looking at the previews:
+
+- Gold bands ride bones of their own (`band`, `collar`) and drop flat in a death; bound to a shard, they tumbled
+  upright like hoops (pawn, rook, queen, knight).
+- The rook's merlons are lower and wider (0.18 × 0.14 instead of 0.13 × 0.22), so the top reads as battlements.
+- The king's cross is about 30% larger, to read from the game camera.
+- Materials export single-sided: every part is a closed solid.
+
+One change outside the models, approved with the plan: footfall sounds play as each hop lands
+(`(i + 1) / count` in `sequencer.ts`), since every piece now hops twice per square.
+
+Checked in the running game (two-player, 1. Nc3 d5 2. Nxd5 Qxd5 3. e4 Qxa2 4. Rxa2 Bf5 5. exf5, frames sampled from the
+canvas): the knight's hop and strike, the pawn, knight, queen and bishop deaths, the rook's slam and the queen's
+attack all play; red and blue recolour cleanly with the gold untouched; every model loads. The king is never captured,
+so its death was checked in the preview render only. Not measured: the frame rate on the CPU renderer. Not run here:
+`online.test.ts` and the E2E suite, both of which need the Postgres container (Docker was not running).

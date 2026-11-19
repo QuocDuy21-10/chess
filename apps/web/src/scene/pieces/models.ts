@@ -8,7 +8,7 @@ export interface Clips {
   die: string;
 }
 
-// scripts/kaykit-piece.ts and scripts/blender/living_pieces.py name every model's clips the same way.
+// scripts/blender/living_pieces.py names every model's clips the same way.
 const CLIPS: Clips = { idle: 'idle', walk: 'walk', attack: 'attack', die: 'die' };
 
 /** Piece types drawn from a .glb model. A type not listed here uses its model built in code. */
