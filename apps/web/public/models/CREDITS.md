@@ -13,7 +13,6 @@ author in Settings as thanks.
 |---|---|---|---|
 | `knight-1.glb` | knight | Ranger, `bow` | `Ranged_Bow_Release`, `Death_B` |
 | `bishop-2.glb` | bishop | Mage, `staff` | `Ranged_Magic_Shoot`, `Death_A` |
-| `rook-1.glb` | rook | Rogue_Hooded, `dagger` | `Melee_1H_Attack_Stab`, `Death_B` |
 | `queen-1.glb` | queen | Rogue, `crossbow_1handed` | `Ranged_1H_Shoot`, `Death_A` |
 | `king-2.glb` | king | Barbarian, `axe_1handed`, `shield_round_barbarian` | `Melee_1H_Attack_Chop`, `Death_A` |
 
@@ -42,6 +41,7 @@ Built from scratch by `scripts/blender/living_pieces.py` (Blender 5.3.0), no thi
 | File | Piece |
 |---|---|
 | `pawn-3.glb` | pawn |
+| `rook-2.glb` | rook |
 
 From `apps/web`:
 
