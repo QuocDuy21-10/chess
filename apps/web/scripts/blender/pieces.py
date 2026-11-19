@@ -1,8 +1,12 @@
-"""The six living chess pieces: each builder returns an lp.Piece. Sizes are in squares (GlbPiece rescales to
-HEIGHT in models.ts anyway); the base stands on z = 0 and the piece faces -Y. Designs: the Pieces table in
-docs/superpowers/specs/2026-11-19-living-pieces-design.md."""
+"""The six chess pieces: each builder returns an lp.Piece. Sizes are in squares (GlbPiece rescales to HEIGHT in
+models.ts anyway); the piece stands on z = 0 and faces -Y. Character pieces (built on figure.py) replace the living
+Staunton pieces one by one: see docs/superpowers/specs/2026-11-19-character-pieces-design.md (Characters) and
+docs/superpowers/specs/2026-11-19-living-pieces-design.md (Pieces) for the ones still to replace."""
 import math
 
+from mathutils import Vector
+
+from figure import REST, body, character, disc, dome, ellipsoid, hoop, humanoid, limb, recoil, star, stride, through
 from lp import (Part, Piece, arc, ball, block, bounce, bump, cone, crumble, cut, ease, fall, halves, lathe, move, ring,
                 rock, shards_of, shift, slab, span, spline, stretch, tip, topple_angle, turn)
 
@@ -35,31 +39,55 @@ FLAT_BANDS = {'band': {'spread': 0, 'jump': 0.04, 'tumble': 0, 'start': 0.42},
 
 
 def pawn():
-    """Ball head, collar, low base. Quick bob; nimble hops; a head-butt; cracks into six shards."""
-    r = 0.3
-    profile = spline(foot(r) + [(0.15, 0.25), (0.115, 0.40), (0.10, 0.50), (0.10, 0.50), (0.16, 0.525),
-                                (0.16, 0.565), (0.085, 0.594), (0.085, 0.594)])[:-1] + arc(0.735, 0.165, -59, 90)
-    parts = wedges(lathe(profile), [0.45])
-    parts += [Part(foot_ring(r), 'trim', 'band'), Part(ring(0.16, 0.012, 0.545), 'trim', 'collar')]
-    shards = [f's{i}' for i in range(6)]
-    parent = {'body': None, **{s: 'body' for s in shards}, 'band': 'body', 'collar': 'body'}
+    """Infantryman: plumed helmet, team tunic, spear in the right hand, round shield on the left forearm. Thrusts the
+    spear from behind the shield, recoils behind it, falls on his side with spear and shield."""
+    f = humanoid()
+    f.add('weapon', 'hand_r', f.at('hand_r'))
+    f.add('shield', 'arm_low_l', f.at('arm_low_l'))
+    grip = f.at('hand_r') + Vector((0, -0.005, -0.035))
+    face = Vector((0.25, -1, 0)).normalized()  # the shield turns a little outward
+    centre = f.at('arm_low_l') + Vector((0.07, -0.08, -0.06))
+    parts = body(f) + [
+        Part(dome(0.105, 0.87), 'steel', 'head'),  # kettle helmet
+        Part(hoop(0.11, 0.012, (0, 0, 0.872)), 'trim', 'head'),
+        Part(ellipsoid(0.03, 0.08, 0.05, (0, 0.03, 0.99)), 'team', 'head'),  # plume
+        Part(lathe([(0, 0.30), (0.16, 0.30), (0.15, 0.40), (0.14, 0.53), (0, 0.53)], 24), 'team', 'hips'),  # tunic
+        Part(hoop(0.133, 0.014, (0, 0, 0.47)), 'leather', 'spine'),  # belt
+        Part(limb(grip + Vector((0, 0, -0.40)), grip + Vector((0, 0, 0.62)), 0.012), 'wood', 'weapon'),
+        Part(cone(0.028, 0.10, grip + Vector((0, 0, 0.67)), 8), 'steel', 'weapon'),
+        Part(disc(0.13, 0.03, centre, face), 'team', 'shield'),
+        Part(hoop(0.128, 0.01, centre + face * 0.012, face), 'trim', 'shield'),
+        Part(star(0.06, 0.012, centre + face * 0.035, face), 'trim', 'shield'),
+    ]
 
-    def idle(t):  # a quick small bob with a slight sway
-        b = 0.5 - 0.5 * math.cos(2 * TAU * t)
-        return {'body': rock(0.025 * math.sin(TAU * t), r) @ stretch(1 - 0.006 * b, 1 - 0.006 * b, 1 + 0.012 * b)}
+    def level(arm_up, arm_low, chest=0.0, spine=0.0):
+        """The weapon's forward turn that holds the spear level, point ahead, for these arm and body turns."""
+        return math.pi / 2 + arm_up + arm_low - chest - spine
 
-    def walk(u):  # small, nimble hops
-        return {'body': bounce(u, 0.07, 0.12, 0.08)}
+    def idle(t):  # breathing, a glance aside now and then
+        b = math.sin(TAU * t)
+        return {'chest': 0.02 * b, 'head': (-0.02 * b, 0, 0.05 * math.sin(2 * TAU * t)), 'arm_up_l': 0.03 * b}
 
-    def attack(t):  # leans back, head-butts forward at the contact, springs back
-        return {'body': move(y=ease(t, 0, 0.03, 0.05, -0.10, 0.02, 0))
-                @ tip(ease(t, 0, -0.12, -0.22, 0.32, 0.05, 0), r)
-                @ stretch(1, 1, ease(t, 1, 0.95, 0.92, 1.06, 1, 1))}
+    def walk(u):  # the spear arm stays nearly still
+        return {**stride(u), 'arm_up_r': 0.08 * math.cos(TAU * u), 'arm_low_r': 0.1}
 
-    die = crumble(parts, parent, r, shards + ['band', 'collar'], spread=0.28, jump=0.12, tumble=1.4,
-                  special={'band': {'spread': 0, 'jump': 0.04, 'tumble': 0},  # the gold bands drop flat
-                           'collar': {'spread': 0.1, 'jump': 0.08, 'tumble': 0}})
-    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+    windup = {'arm_up_r': -0.5, 'arm_low_r': 0.9, 'weapon': level(-0.5, 0.9, -0.05), 'chest': (-0.05, 0, -0.3),
+              'arm_up_l': 0.5, 'arm_low_l': 0.6, 'leg_up_l': 0.35, 'leg_up_r': -0.25, 'leg_low_l': -0.2}
+    strike = {'arm_up_r': 1.3, 'arm_low_r': 0.15, 'weapon': level(1.3, 0.15, 0.15, 0.1), 'chest': (0.15, 0, 0.35),
+              'spine': 0.1, 'arm_up_l': 0.3, 'arm_low_l': 0.5, 'leg_up_l': 0.6, 'leg_up_r': -0.45, 'leg_low_l': -0.35}
+    follow = {**strike, 'arm_up_r': 1.1, 'weapon': level(1.1, 0.15, 0.15, 0.1)}
+    struck = {**recoil(0.35), 'arm_up_l': 0.8, 'arm_low_l': 0.9}  # the shield comes up
+    staggered = {**struck, 'spine': -0.5, 'root': (0, -0.2, 0)}
+    down = {'root': (0, -1.5, 0), 'spine': 0.15, 'head': (0.2, -0.3, 0), 'arm_up_l': 0.4, 'arm_up_r': 0.6,
+            'weapon': 0.3, 'leg_up_l': 0.4, 'leg_low_l': -0.6, 'leg_up_r': 0.1}  # on his right side
+
+    return character(f, parts, {
+        'idle': (72, idle),
+        'walk': (30, walk),
+        'attack': (30, lambda t: through(t, REST, windup, windup, strike, follow, REST)),  # strike at 0.6
+        'hit': (9, lambda t: through(t, REST, struck)),
+        'die': (30, lambda t: through(t, struck, staggered, down, down)),
+    })
 
 
 PIECES['pawn'] = pawn
