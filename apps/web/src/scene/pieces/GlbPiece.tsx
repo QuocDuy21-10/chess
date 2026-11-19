@@ -21,6 +21,8 @@ import { HEIGHT, MODELS, type Clips } from './models';
 import { clipTime, keys, type PieceModelProps } from './rig';
 
 type Clip = keyof Clips;
+/** One action per clip; only hit may be missing. */
+type Actions = Record<Exclude<Clip, 'hit'>, AnimationAction> & { hit?: AnimationAction };
 
 // Texels whose red and blue are high and green low (the magenta painted in Meshy) take the team's colour,
 // at the texel's brightness so the shading baked into the texture survives.
@@ -63,24 +65,26 @@ function fit(scene: Object3D, height: number) {
 function animate(model: Object3D, animations: AnimationClip[], clips: Clips | undefined) {
   if (!clips) return null;
   const mixer = new AnimationMixer(model);
-  const actions = {} as Record<Clip, AnimationAction>;
+  const actions = {} as Actions;
   for (const key of Object.keys(clips) as Clip[]) {
     const clip = animations.find((candidate) => candidate.name === clips[key]);
     if (!clip) return null;
     const action = mixer.clipAction(clip);
-    if (key === 'attack' || key === 'die') {
+    if (key !== 'idle' && key !== 'walk') {
       action.setLoop(LoopOnce, 1);
       action.clampWhenFinished = true;
     }
     action.play();
-    actions[key] = action;
+    (actions as Record<Clip, AnimationAction>)[key] = action;
   }
   return { mixer, actions };
 }
 
 /** Weights `clip` in and every other clip out. */
-function only(actions: Record<Clip, AnimationAction>, clip: Clip) {
-  for (const key of Object.keys(actions) as Clip[]) actions[key].setEffectiveWeight(key === clip ? 1 : 0);
+function only(actions: Actions, clip: Clip) {
+  for (const [key, action] of Object.entries(actions) as [Clip, AnimationAction][]) {
+    action.setEffectiveWeight(key === clip ? 1 : 0);
+  }
 }
 
 /** Plays the idle clip on in real time. */
@@ -156,7 +160,7 @@ export function GlbPiece({ type, color, ref }: PieceModelProps & { type: PieceSy
     }
     /** Holds `clip` at `value` (see clipTime), with every other clip weighted out. */
     const hold = (clip: Clip, value: number, loop: boolean) => {
-      const action = anim.actions[clip];
+      const action = anim.actions[clip]!;
       only(anim.actions, clip);
       action.enabled = true;
       action.paused = true;
@@ -171,6 +175,10 @@ export function GlbPiece({ type, color, ref }: PieceModelProps & { type: PieceSy
       attack(t) {
         posed.current = t < 1; // back to idle at the end
         if (posed.current) hold('attack', t, false);
+      },
+      hit(t) {
+        posed.current = anim.actions.hit !== undefined; // a model without a hit clip keeps idling until it dies
+        if (posed.current) hold('hit', t, false);
       },
       die(t) {
         posed.current = true; // the last pose stays until the piece is removed

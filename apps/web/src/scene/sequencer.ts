@@ -82,7 +82,7 @@ async function animate(step: Step, deps: SequencerDeps, offSquare: Map<PieceId, 
   const impactMs = TIMING.attackMs * TIMING.impactAt;
   sound?.('hit', impactMs);
   await wait(impactMs);
-  await Promise.all([attack, defender.play('die')]);
+  await Promise.all([attack, defender.play('hit').then(() => defender.play('die'))]); // recoils, then falls
   sound?.('fall');
   void camera?.reset(); // glides out while the attacker steps in
 }

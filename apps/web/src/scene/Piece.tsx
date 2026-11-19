@@ -18,6 +18,7 @@ import { TEAM, TIMING, walkMs } from './theme';
 import { tween } from './tween';
 
 const BUILT = { p: Pawn, n: Knight, b: Bishop, r: Rook, q: Queen, k: King };
+const CLIP_MS = { attack: TIMING.attackMs, hit: TIMING.hitMs, die: TIMING.dieMs } as const;
 
 /** One piece on the board. Owns its position and facing, and registers itself as an actor. */
 export function PieceActor({ piece }: { piece: Piece }) {
@@ -55,8 +56,7 @@ export function PieceActor({ piece }: { piece: Piece }) {
           rig.current?.stride(t === 1 ? 0 : t * distance);
         });
       },
-      play: (clip) =>
-        tween(clip === 'attack' ? TIMING.attackMs : TIMING.dieMs, (t) => rig.current?.[clip](t)),
+      play: (clip) => tween(CLIP_MS[clip], (t) => rig.current?.[clip]?.(t)),
     };
     actors.set(piece.id, handle);
     return () => void actors.delete(piece.id);

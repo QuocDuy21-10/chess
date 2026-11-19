@@ -5,11 +5,13 @@ export interface Clips {
   idle: string;
   walk: string;
   attack: string;
+  hit?: string;
   die: string;
 }
 
-// scripts/blender/living_pieces.py names every model's clips the same way.
+// scripts/blender/living_pieces.py names every model's clips the same way; character pieces (figure.py) add a hit.
 const CLIPS: Clips = { idle: 'idle', walk: 'walk', attack: 'attack', die: 'die' };
+export const CHARACTER: Clips = { ...CLIPS, hit: 'hit' };
 
 /** Piece types drawn from a .glb model. A type not listed here uses its model built in code. */
 export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>> = {
