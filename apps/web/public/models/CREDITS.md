@@ -12,7 +12,6 @@ author in Settings as thanks.
 | File | Piece | Character and weapons | Clips: attack, die (idle `Idle_A`, walk `Walking_A`) |
 |---|---|---|---|
 | `knight-1.glb` | knight | Ranger, `bow` | `Ranged_Bow_Release`, `Death_B` |
-| `king-2.glb` | king | Barbarian, `axe_1handed`, `shield_round_barbarian` | `Melee_1H_Attack_Chop`, `Death_A` |
 
 ## Making the models again
 
@@ -42,6 +41,7 @@ Built from scratch by `scripts/blender/living_pieces.py` (Blender 5.3.0), no thi
 | `rook-2.glb` | rook |
 | `bishop-3.glb` | bishop |
 | `queen-2.glb` | queen |
+| `king-3.glb` | king |
 
 From `apps/web`:
 

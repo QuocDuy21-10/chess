@@ -179,3 +179,48 @@ def queen():
 
 
 PIECES['queen'] = queen
+
+
+def king():
+    """The tallest, with a cross. Stately breathing; heavy hops; rises and hammers down; the cross falls first, then
+    the king topples slowly and cracks."""
+    r = 0.34
+    profile = spline(foot(r) + [(0.16, 0.35), (0.115, 0.60), (0.11, 0.80), (0.11, 0.88), (0.11, 0.88), (0.18, 0.91),
+                                (0.18, 0.945), (0.11, 0.97), (0.11, 0.97), (0.13, 1.07), (0.17, 1.20), (0.20, 1.27),
+                                (0.20, 1.27), (0.20, 1.30), (0.20, 1.30), (0.14, 1.31), (0.07, 1.345), (0, 1.355)])
+    parts = wedges(lathe(profile), [0.75])
+    parts += [Part(block(0.065, 0.065, 0.25, (0, 0, 1.46)), 'trim', 'cross'),
+              Part(block(0.19, 0.065, 0.065, (0, 0, 1.50)), 'trim', 'cross'),
+              Part(foot_ring(r), 'trim', 's0'), Part(ring(0.18, 0.012, 0.93), 'trim', 's3'),
+              Part(ring(0.20, 0.014, 1.285), 'trim', 's3')]
+    names = [f's{i}' for i in range(6)]
+    parent = {'body': None, **{s: 'body' for s in names}, 'cross': 'body'}
+    cross = shards_of(parts, parent, ['cross'])[0]
+    shards = shards_of(parts, parent, names)
+    lying = topple_angle([v.co for p in parts if p.bone != 'cross' for v in p.mesh.verts], r)
+
+    def idle(t):  # slow and stately breathing
+        b = 0.5 - 0.5 * math.cos(TAU * t)
+        return {'body': rock(0.01 * math.sin(TAU * t), r) @ stretch(1 - 0.004 * b, 1 - 0.004 * b, 1 + 0.008 * b)}
+
+    def walk(u):  # heavy, dignified hops
+        return {'body': bounce(u, 0.04, 0.06, 0.03)}
+
+    def attack(t):  # rises tall, then hammers down like a gavel at the contact
+        rise = ease(t, 0, 0.5, 1.0, -0.4, 0, 0)
+        return {'body': tip(ease(t, 0, -0.05, -0.10, 0.45, 0.08, 0), r)
+                @ stretch(1 - 0.04 * rise, 1 - 0.04 * rise, 1 + 0.10 * rise)}
+
+    def die(t):  # a short jolt; the cross falls; the king topples slowly; its halves crack apart
+        if t < 0.15:
+            return {'body': tip(-0.2 * math.sin(math.pi * span(t, 0, 0.15)), r)}
+        body = tip(ease(span(t, 0.3, 0.9), 0, lying), r)
+        flying = fall(cross, span(t, 0.15, 0.7), spread=0.25, jump=0.2, tumble=1.6, towards=(0.7, 0.7, 0))
+        crack = 0.035 * ease(span(t, 0.85, 1.0), 0, 1)  # along X, which stays level while it topples about X
+        return {'body': body, 'cross': body.inverted() @ flying,
+                **{s.bone: move(x=crack if s.centre.x > 0 else -crack) for s in shards}}
+
+    return Piece(parts, parent, {'idle': (90, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+
+
+PIECES['king'] = king
