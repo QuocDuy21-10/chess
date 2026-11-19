@@ -97,3 +97,48 @@ def rook():
 
 
 PIECES['rook'] = rook
+
+
+def bishop():
+    """A mitre with a slit and a ball finial. Praying tilt; smooth glide; a spin and a thrust; the mitre splits and
+    flies off, the body falls over."""
+    r = 0.3
+    profile = spline(foot(r) + [(0.13, 0.35), (0.095, 0.55), (0.09, 0.62), (0.09, 0.62), (0.15, 0.645),
+                                (0.15, 0.675), (0.085, 0.70), (0.085, 0.70), (0, 0.70)])
+    mitre = lathe(spline([(0, 0.69), (0.10, 0.70), (0.15, 0.80), (0.15, 0.90), (0.10, 1.02), (0.035, 1.12),
+                          (0.035, 1.12), (0, 1.12)]))
+    slit_at, slit = (0.0, -0.02, 0.95), (0.0, 0.55, 0.83)  # the cut runs up from the back to the front of the mitre
+    low, high = halves(mitre, slit_at, slit)
+    mitre.free()
+    gap = 0.006  # opens the slit so it shows at rest
+    shift(low, [-gap * c for c in slit])
+    shift(high, [gap * c for c in slit])
+    parts = [Part(lathe(profile), 'team', 'body'), Part(foot_ring(r), 'trim', 'body'),
+             Part(ring(0.15, 0.012, 0.66), 'trim', 'body'), Part(low, 'team', 'mitre_lo'),
+             Part(high, 'team', 'mitre_hi'), Part(ball(0.05, z=1.17), 'trim', 'mitre_hi')]
+    parent = {'body': None, 'mitre_lo': 'body', 'mitre_hi': 'body'}
+    hat = shards_of(parts, parent, ['mitre_hi'])[0]
+    lying = topple_angle([v.co for p in parts if p.bone != 'mitre_hi' for v in p.mesh.verts], r)
+
+    def idle(t):  # a gentle forward tilt, as if praying
+        return {'body': tip(0.04 * (0.5 - 0.5 * math.cos(TAU * t)), r)}
+
+    def walk(u):  # a smooth glide with little bounce
+        return {'body': bounce(u, 0.025, 0.05, 0.02)}
+
+    def attack(t):  # one full turn, then a thrust of the mitre's point at the contact
+        spin = turn(TAU * ease(span(t, 0.0, 0.45), 0, 1), 'Z')
+        return {'body': move(y=ease(t, 0, 0, 0.02, -0.08, 0.01, 0)) @ tip(ease(t, 0, -0.04, -0.12, 0.38, 0.06, 0), r)
+                @ spin}
+
+    def die(t):  # a jolt back, then the mitre's top flies off behind while the body falls forward
+        if t < 0.3:
+            return {'body': tip(-0.25 * math.sin(math.pi * span(t, 0, 0.3)), r)}
+        body = tip(ease(span(t, 0.35, 0.9), 0, lying), r)
+        flying = fall(hat, span(t, 0.3, 0.95), spread=0.3, jump=0.25, tumble=1.8, towards=(0.6, 0.8, 0))
+        return {'body': body, 'mitre_hi': body.inverted() @ flying}
+
+    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+
+
+PIECES['bishop'] = bishop
