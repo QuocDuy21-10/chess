@@ -39,7 +39,8 @@ async function move(
   if (mode === 'walk') {
     const length = distance(from, to);
     const count = Math.max(1, Math.round(length * STEPS_PER_SQUARE));
-    for (let i = 0; i < count; i++) sound?.('step', ((i + 0.5) / count) * walkMs(length));
+    // Living pieces hop twice per square and land at the end of each hop (scripts/blender/lp.py, bounce).
+    for (let i = 0; i < count; i++) sound?.('step', ((i + 1) / count) * walkMs(length));
   }
   await actor?.moveTo(to, mode);
   if (mode === 'hop') sound?.('land');
