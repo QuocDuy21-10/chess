@@ -11,7 +11,9 @@
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
     "size": "node scripts/bundle-size.ts",
-    "models": "sh -c 'gltf-transform optimize \"$0\" \"$1\" --compress meshopt --texture-compress webp --texture-size 512 --instance false'"
+    "models": "sh -c 'gltf-transform optimize \"$0\" \"$1\" --compress meshopt --texture-compress webp --texture-size 512 --instance false'",
+    "living": "sh -c '\"${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}\" --background --factory-startup --python-exit-code 1 --python scripts/blender/living_pieces.py -- \"$0\" assets-src/living'",
+    "living:test": "sh -c '\"${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}\" --background --factory-startup --python-exit-code 1 --python scripts/blender/test_lp.py'"
   },
   "dependencies": {
     "@chess/shared": "*",
