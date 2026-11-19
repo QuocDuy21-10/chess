@@ -123,6 +123,16 @@ test('a long walk has two footfalls per square, a hop lands once, a promotion ch
   expect(cues).toEqual([...Array(6).fill('step'), 'land', 'promote']);
 });
 
+test('footfalls play as each hop lands: two per square, the last as the walk ends', async () => {
+  const { deps } = setup('8/P7/8/8/8/8/1N6/k6K w - - 0 1');
+  const delays: number[] = [];
+  await runSteps([{ kind: 'walk', piece: 'w-k-h1', to: 'h4' }], {
+    ...deps,
+    sound: (name, delayMs) => void (name === 'step' && delays.push(Math.round(delayMs ?? 0))),
+  });
+  expect(delays).toEqual([1, 2, 3, 4, 5, 6].map((i) => Math.round((i / 6) * walkMs(3))));
+});
+
 test('walks take at least the minimum time and scale with distance', () => {
   expect(walkMs(0.1)).toBe(TIMING.walkMinMs);
   expect(walkMs(6)).toBe(2000);
