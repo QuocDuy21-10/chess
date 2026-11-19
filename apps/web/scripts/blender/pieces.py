@@ -51,7 +51,9 @@ def pawn():
         Part(dome(0.105, 0.87), 'steel', 'head'),  # kettle helmet
         Part(hoop(0.11, 0.012, (0, 0, 0.872)), 'trim', 'head'),
         Part(ellipsoid(0.03, 0.08, 0.05, (0, 0.03, 0.99)), 'team', 'head'),  # plume
-        Part(lathe([(0, 0.30), (0.16, 0.30), (0.15, 0.40), (0.14, 0.53), (0, 0.53)], 24), 'team', 'hips'),  # tunic
+        Part(lathe([(0, 0.29), (0.19, 0.29), (0.172, 0.36), (0.148, 0.45), (0.14, 0.53), (0, 0.53)], 24), 'team',
+             'hips'),  # tunic, flaring to the hem
+        Part(hoop(0.188, 0.011, (0, 0, 0.293)), 'trim', 'hips'),  # its gold hem
         Part(hoop(0.133, 0.014, (0, 0, 0.47)), 'leather', 'spine'),  # belt
         Part(limb(grip + Vector((0, 0, -0.40)), grip + Vector((0, 0, 0.62)), 0.012), 'wood', 'weapon'),
         Part(cone(0.028, 0.10, grip + Vector((0, 0, 0.67)), 8), 'steel', 'weapon'),
@@ -76,7 +78,7 @@ def pawn():
     strike = {'arm_up_r': 1.3, 'arm_low_r': 0.15, 'weapon': level(1.3, 0.15, 0.15, 0.1), 'chest': (0.15, 0, 0.35),
               'spine': 0.1, 'arm_up_l': 0.3, 'arm_low_l': 0.5, 'leg_up_l': 0.6, 'leg_up_r': -0.45, 'leg_low_l': -0.35}
     follow = {**strike, 'arm_up_r': 1.1, 'weapon': level(1.1, 0.15, 0.15, 0.1)}
-    struck = {**recoil(0.35), 'arm_up_l': 0.8, 'arm_low_l': 0.9}  # the shield comes up
+    struck = {**recoil(0.35), 'arm_up_l': 0.55, 'arm_low_l': 1.0}  # the shield comes up to the chest
     staggered = {**struck, 'spine': -0.5, 'root': (0, -0.2, 0)}
     down = {'root': (0, -1.5, 0), 'spine': 0.15, 'head': (0.2, -0.3, 0), 'arm_up_l': 0.4, 'arm_up_r': 0.6,
             'weapon': 0.3, 'leg_up_l': 0.4, 'leg_low_l': -0.6, 'leg_up_r': 0.1}  # on his right side

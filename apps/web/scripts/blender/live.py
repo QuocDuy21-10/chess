@@ -6,6 +6,7 @@ import os
 import sys
 
 import bpy
+from mathutils import Euler
 
 PIECE = 'pawn'
 CLIP = 'attack'  # idle, walk, attack, hit or die
@@ -36,5 +37,13 @@ lp.check(obj, rig, piece)  # raises, naming the first breach of the clip contrac
 bpy.data.materials['team'].diffuse_color = lp.RED  # the viewport shows the red team; the export stays magenta
 bpy.data.materials['team'].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = lp.RED
 rig.animation_data.action = bpy.data.actions[CLIP]
+rig.hide_set(True)  # every bone stands at the origin (lp's shared rest frame), so drawn they only hide the figure
 scene.frame_start, scene.frame_end, scene.frame_current = 0, piece.clips[CLIP][0], 0
+for area in (a for screen in bpy.data.screens for a in screen.areas):  # a three-quarter view from the front right
+    if area.type == 'VIEW_3D':
+        view = area.spaces.active
+        view.region_3d.view_location = (0, 0, 0.5)
+        view.region_3d.view_rotation = Euler((1.3, 0, 0.6)).to_quaternion()
+        view.region_3d.view_distance = 2.4
+        view.shading.type = 'MATERIAL'
 print(f'{PIECE}: the clip contract holds; playing {CLIP} ({piece.clips[CLIP][0]} frames)')
