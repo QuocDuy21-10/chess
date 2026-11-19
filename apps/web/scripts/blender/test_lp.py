@@ -117,6 +117,80 @@ class Geometry(unittest.TestCase):
         self.assertAlmostEqual(max(xs) - min(xs), 0.2, delta=1e-6)
 
 
+def toy(attack_end=0.0):
+    """A cylinder in two shards on a body bone, with simple clips; `attack_end` leaves the attack off rest."""
+    body = lp.lathe([(0, 0), (0.3, 0), (0.3, 0), (0.3, 1), (0.3, 1), (0, 1)])
+    low, high = lp.halves(body, (0, 0, 0.5), (0, 0, 1))
+    parts = [lp.Part(low, 'team', 'low'), lp.Part(high, 'trim', 'high')]
+    parent = {'body': None, 'low': 'body', 'high': 'body'}
+    clips = {
+        'idle': (24, lambda t: {'body': lp.move(z=0.02 * (1 - math.cos(math.tau * t)))}),
+        'walk': (24, lambda u: {'body': lp.bounce(u, 0.1, 0.1, 0.05)}),
+        'attack': (30, lambda t: {'body': lp.tip(lp.ease(t, 0, -0.1, -0.2, 0.3, 0.05, attack_end), 0.3)}),
+        'die': (30, lp.crumble(parts, parent, 0.3, ['low', 'high'])),
+    }
+    return lp.Piece(parts, parent, clips, 0.3)
+
+
+def built(piece):
+    lp.reset()
+    obj, rig = lp.assemble('toy', piece)
+    for clip in lp.CLIPS:
+        lp.bake(rig, piece, clip)
+    return obj, rig
+
+
+class Rig(unittest.TestCase):
+    def test_a_baked_pose_moves_each_vertex_by_its_bone_matrix(self):
+        piece = toy()
+        obj, rig = built(piece)
+        frame = 18
+        lp.evaluate(rig, 'die', frame)
+        points = lp.deformed(obj)
+        world = lp.world_poses(piece.parent, piece.clips['die'][1](frame / 30))
+        names = [g.name for g in obj.vertex_groups]
+        rest = [v.co.copy() for v in obj.data.vertices]
+        error = max((points[i] - world[names[v.groups[0].group]] @ rest[i]).length for i, v in enumerate(obj.data.vertices))
+        self.assertLess(error, 1e-4)
+
+    def test_check_accepts_a_piece_that_keeps_the_contract(self):
+        piece = toy()
+        lp.check(*built(piece), piece)
+
+    def test_check_rejects_an_attack_that_does_not_end_at_rest(self):
+        piece = toy(attack_end=0.2)
+        with self.assertRaisesRegex(AssertionError, 'attack does not end at rest'):
+            lp.check(*built(piece), piece)
+
+    def test_a_falling_shard_lands_on_the_floor_and_never_sinks(self):
+        piece = toy()
+        shard = lp.shards_of(piece.parts, piece.parent, ['high'])[0]
+        for i in range(21):
+            m = lp.fall(shard, i / 20, 0.3, 0.2, 1.5)
+            self.assertGreaterEqual(min((m @ p).z for p in shard.points), -1e-9)
+        self.assertAlmostEqual(min((lp.fall(shard, 1, 0.3, 0.2, 1.5) @ p).z for p in shard.points), 0, delta=1e-6)
+
+    def test_shards_of_leaves_out_parts_under_another_shard(self):
+        parts = [lp.Part(lp.ball(0.1, z=0.5), 'team', 'neck'), lp.Part(lp.ball(0.1, z=1.0), 'team', 'head')]
+        neck, = lp.shards_of(parts, {'body': None, 'neck': 'body', 'head': 'neck'}, ['neck', 'head'])[:1]
+        self.assertLess(max(p.z for p in neck.points), 0.7)
+
+    def test_a_cylinder_topples_all_the_way_onto_its_side(self):
+        piece = toy()
+        points = [v.co for p in piece.parts for v in p.mesh.verts]
+        self.assertAlmostEqual(lp.topple_angle(points, 0.3), math.pi / 2, delta=0.02)
+
+    def test_export_writes_the_four_clips_with_unique_node_names(self):
+        piece = toy()
+        built(piece)
+        path = os.path.join(tempfile.mkdtemp(), 'toy.glb')
+        lp.export(path)
+        data = lp.glb_json(path)
+        self.assertEqual(sorted(a['name'] for a in data['animations']), sorted(lp.CLIPS))
+        names = [n['name'] for n in data['nodes']]
+        self.assertEqual(len(names), len(set(names)))  # three.js binds clip tracks to nodes by name
+
+
 def run():
     result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__]))
     if not result.wasSuccessful():
