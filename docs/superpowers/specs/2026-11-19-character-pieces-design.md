@@ -127,3 +127,26 @@ with `npm run models`.
 
 Per-team heraldry, facial expressions, cloth simulation, particles, a victory clip, new sounds, any change to chess
 rules or the knight's hop.
+
+## Pilot outcome (2026-11-19)
+
+`pawn-4.glb`: 126,532 bytes, 20 bones, about 5,600 vertices. Built by `npm run living -- pawn`; the clip contract
+held on every build.
+
+Changes made while tuning, in Blender and after the first look in the game:
+
+- The tunic flares to its hem and has a gold hem band; as a straight cylinder it read as a drum.
+- In `hit`, the shield comes up to the chest, not over the face.
+- Steel is half metallic (0.55, `#C8CDD6`) and gold 0.6: fully metallic, both mirrored the courtyard's dark sky and
+  the armour read as black in the game.
+- `live.py` frames the figure from the front right in material shading and hides the armature (all its bones stand
+  at the origin, so drawn they hide the figure). In the Blender app it was run from the Python console with
+  `exec(compile(open(P).read(), P, 'exec'), {'__file__': P, '__name__': '__main__'})`.
+
+Checked in the running game (dev server, two players, 1. e4 d5 2. exd5 Qxd5, frames captured in a Playwright
+browser): the red pawn walks, winds up and thrusts; the blue pawn recoils and falls on its side with spear and
+shield; then the blue Staunton queen takes the red pawn, which recoils and falls. Red and blue recolour only the
+tunic, plume and shield face. The Staunton pieces idle through the 0.3 s hit, then shatter as before. Still to judge:
+the character pawn is slimmer than the Staunton pieces at `HEIGHT.p = 0.9`.
+
+Tests: `npm run living:test` 44 OK; `npm test` server 103, web 163, shared 18; typecheck and lint clean.

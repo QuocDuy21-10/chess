@@ -36,8 +36,8 @@ RED = srgb('#B91C1C')  # PALETTE.red, for the preview renders only
 # name -> (linear RGBA, metallic, roughness, emission strength). Only 'team' may look magenta to GlbPiece's shader.
 MATERIALS = {
     'team': (MAGENTA, 0.0, 0.25, 0.0),
-    'trim': (GOLD, 1.0, 0.3, 0.0),
-    'steel': (srgb('#B8BEC8'), 1.0, 0.28, 0.0),
+    'trim': (GOLD, 0.6, 0.3, 0.0),  # like steel: fully metallic, it mirrors the dark sky
+    'steel': (srgb('#C8CDD6'), 0.55, 0.35, 0.0),  # half metallic: fully metallic, it mirrors the dark courtyard sky
     'dark': (srgb('#2A2A30'), 0.0, 0.5, 0.0),
     'skin': (srgb('#E8B48C'), 0.0, 0.6, 0.0),
     'leather': (srgb('#6B4226'), 0.0, 0.7, 0.0),
