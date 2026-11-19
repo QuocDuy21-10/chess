@@ -224,3 +224,61 @@ def king():
 
 
 PIECES['king'] = king
+
+
+HORSE = [(0.17, 0.28), (0.20, 0.55), (0.17, 0.80), (0.10, 1.00), (0.00, 1.15), (-0.08, 1.12), (-0.15, 1.00),
+         (-0.32, 0.88), (-0.34, 0.80), (-0.28, 0.74), (-0.16, 0.76), (-0.08, 0.66), (-0.15, 0.50), (-0.16, 0.35),
+         (-0.12, 0.28)]  # a horse's head and neck in profile, (y, z), facing -Y
+MANE = [(0.205, 0.62), (0.195, 0.72), (0.18, 0.82), (0.145, 0.92), (0.10, 1.02)]  # just proud of the neck's back
+
+
+def knight():
+    """A carved horse's head on a neck, with ears, gold eyes and mane. Nods and flicks its ears; trots; rears up and
+    strikes down with its head; the head breaks off, the neck falls forward, the base shatters."""
+    r = 0.32
+    profile = spline(foot(r) + [(0.19, 0.22), (0.20, 0.27), (0.20, 0.27), (0.21, 0.29), (0.21, 0.31), (0.21, 0.31),
+                                (0, 0.31)])
+    throat, split = (0.0, -0.08, 0.66), (0.0, -0.49, 0.87)  # a plane from the throat up to the back of the neck
+    carved = slab(HORSE, 0.2, 0.04)
+    neck, head = halves(carved, throat, split)
+    carved.free()
+
+    def on_head(y, z):
+        return split[1] * (y - throat[1]) + split[2] * (z - throat[2]) > 0
+
+    parts = wedges(lathe(profile), [])
+    parts += [Part(neck, 'team', 'neck'), Part(head, 'team', 'head'),
+              Part(cone(0.03, 0.1, (0.045, 0.02, 1.16)), 'team', 'ear_l'),
+              Part(cone(0.03, 0.1, (-0.045, 0.02, 1.16)), 'team', 'ear_r'),
+              Part(ball(0.02, 0.1, -0.13, 0.97), 'trim', 'head'), Part(ball(0.02, -0.1, -0.13, 0.97), 'trim', 'head'),
+              Part(foot_ring(r), 'trim', 'band'), Part(ring(0.21, 0.012, 0.30), 'trim', 'collar')]
+    parts += [Part(block(0.06, 0.05, 0.08, (0, y, z)), 'trim', 'head' if on_head(y, z) else 'neck') for y, z in MANE]
+    parent = {'body': None, 's0': 'body', 's1': 'body', 's2': 'body', 'neck': 'body', 'head': 'neck',
+              'ear_l': 'head', 'ear_r': 'head', 'band': 'body', 'collar': 'body'}
+    neck_at, head_at = (0, 0.05, 0.31), (0, 0.04, 0.78)
+    ear_at = {'ear_l': (0.045, 0.02, 1.11), 'ear_r': (-0.045, 0.02, 1.11)}
+
+    def flick(t, ear, centre):  # an ear twitches back once per loop
+        return turn(-0.35 * bump(t, centre, 0.04), 'X', ear_at[ear])
+
+    def idle(t):  # nods, flicks its ears
+        return {'neck': turn(0.04 * math.sin(TAU * t), 'X', neck_at),
+                'head': turn(0.05 * math.sin(TAU * t + 1), 'X', head_at),
+                'ear_l': flick(t, 'ear_l', 0.3), 'ear_r': flick(t, 'ear_r', 0.75)}
+
+    def walk(u):  # a trotting bounce (the game also arcs the knight through the air), nodding on every hop
+        return {'body': bounce(u, 0.03, 0.08, 0.03), 'neck': turn(0.10 * math.sin(2 * TAU * u), 'X', neck_at)}
+
+    def attack(t):  # rears up, then strikes down with the head at the contact
+        return {'body': tip(ease(t, 0, -0.15, -0.28, 0.28, 0.05, 0), r),
+                'neck': turn(ease(t, 0, -0.15, -0.35, 0.30, 0.05, 0), 'X', neck_at),
+                'head': turn(ease(t, 0, -0.10, -0.20, 0.25, 0, 0), 'X', head_at)}
+
+    die = crumble(parts, parent, r, ['neck', 'head', 's0', 's1', 's2', 'band', 'collar'], spread=0.22, jump=0.08, tumble=1.0,
+                  special={'head': {'spread': 0.3, 'jump': 0.3, 'tumble': 2.2, 'towards': (0.3, -1, 0)},
+                           'neck': {'spread': 0.12, 'jump': 0.02, 'tumble': 1.3, 'towards': (0, -1, 0), 'start': 0.36},
+                           **{s: {'start': 0.42} for s in ('s0', 's1', 's2')}, **FLAT_BANDS})
+    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+
+
+PIECES['knight'] = knight
