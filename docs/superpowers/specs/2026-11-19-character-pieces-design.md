@@ -150,3 +150,8 @@ tunic, plume and shield face. The Staunton pieces idle through the 0.3 s hit, th
 the character pawn is slimmer than the Staunton pieces at `HEIGHT.p = 0.9`.
 
 Tests: `npm run living:test` 44 OK; `npm test` server 103, web 163, shared 18; typecheck and lint clean.
+
+E2E not yet verified: the run reused the owner's dev servers on ports 3000/3001, whose database does not hold the
+suite's signed-in test users, so every page logged `401 (Unauthorized)` and online play could not create a room
+(11 failed, 4 passed; no failure involved a model). It needs the dev servers stopped so the suite starts its own on a
+production build.
