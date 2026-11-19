@@ -142,3 +142,40 @@ def bishop():
 
 
 PIECES['bishop'] = bishop
+
+
+def queen():
+    """A coronet of eight balls on a narrow waist. Hip sway; graceful hops; a whirling lash with the coronet flaring;
+    the coronet pops off and the body shatters."""
+    r = 0.32
+    profile = spline(foot(r) + [(0.15, 0.32), (0.10, 0.52), (0.09, 0.62), (0.10, 0.72), (0.10, 0.82), (0.10, 0.82),
+                                (0.17, 0.85), (0.17, 0.885), (0.10, 0.91), (0.10, 0.91), (0.12, 1.0), (0.16, 1.12),
+                                (0.19, 1.21), (0.19, 1.21), (0.19, 1.23), (0.19, 1.23), (0.12, 1.24), (0.06, 1.27),
+                                (0, 1.28)])
+    parts = wedges(lathe(profile), [0.7])
+    parts += [Part(ring(0.185, 0.014, 1.22), 'trim', 'crown'), Part(ball(0.045, z=1.315), 'trim', 'crown')]
+    parts += [Part(ball(0.028, 0.175 * math.cos(a), 0.175 * math.sin(a), 1.255), 'trim', 'crown')
+              for a in (k * TAU / 8 for k in range(8))]
+    parts += [Part(foot_ring(r), 'trim', 'band'), Part(ring(0.17, 0.012, 0.87), 'trim', 'collar')]
+    shards = [f's{i}' for i in range(6)]
+    parent = {'body': None, **{s: 'body' for s in shards}, 'crown': 'body', 'band': 'body', 'collar': 'body'}
+
+    def idle(t):  # a slow sway of the hips
+        return {'body': rock(0.03 * math.sin(TAU * t), r) @ turn(0.06 * math.sin(TAU * t), 'Z')}
+
+    def walk(u):  # light, graceful hops with a sway
+        return {'body': bounce(u, 0.06, 0.08, 0.05) @ turn(0.05 * math.sin(TAU * u), 'Z')}
+
+    def attack(t):  # whirls once, leaning out further as she turns, and lashes forward at the contact
+        whirl = -TAU * (1 - ease(span(t, 0.0, 0.6), 0, 1))
+        lean = ease(t, 0, 0.12, 0.22, 0.35, 0.05, 0)
+        flare = 1 + 0.25 * bump(t, 0.6, 0.2)  # the coronet's points spread out at the strike
+        return {'body': turn(whirl, 'Z') @ tip(lean, r), 'crown': stretch(flare, flare, 1, (0, 0, 1.25))}
+
+    die = crumble(parts, parent, r, ['crown'] + shards + ['band', 'collar'], spread=0.26, jump=0.12, tumble=1.3,
+                  special={'crown': {'spread': 0.2, 'jump': 0.45, 'tumble': 2.5}, **{s: {'start': 0.38} for s in shards},
+                           **FLAT_BANDS})
+    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+
+
+PIECES['queen'] = queen
