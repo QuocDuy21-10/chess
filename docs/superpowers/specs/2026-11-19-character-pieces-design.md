@@ -130,6 +130,8 @@ rules or the knight's hop.
 
 ## Pilot outcome (2026-11-19)
 
+The owner approved the pilot on 2026-11-19; the rook, bishop, queen, king and knight follow in part 2 of the plan.
+
 `pawn-4.glb`: 126,532 bytes, 20 bones, about 5,600 vertices. Built by `npm run living -- pawn`; the clip contract
 held on every build.
 
