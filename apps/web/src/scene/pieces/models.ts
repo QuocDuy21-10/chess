@@ -8,12 +8,12 @@ export interface Clips {
   die: string;
 }
 
-// scripts/kaykit-piece.ts names every model's clips the same way.
+// scripts/kaykit-piece.ts and scripts/blender/living_pieces.py name every model's clips the same way.
 const CLIPS: Clips = { idle: 'idle', walk: 'walk', attack: 'attack', die: 'die' };
 
 /** Piece types drawn from a .glb model. A type not listed here uses its model built in code. */
 export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>> = {
-  p: { url: '/models/pawn-2.glb', clips: CLIPS },
+  p: { url: '/models/pawn-3.glb', clips: CLIPS },
   n: { url: '/models/knight-1.glb', clips: CLIPS },
   b: { url: '/models/bishop-2.glb', clips: CLIPS },
   r: { url: '/models/rook-1.glb', clips: CLIPS },

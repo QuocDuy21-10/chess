@@ -1,6 +1,6 @@
 # 3D model credits
 
-All piece models come from two CC0 packs by Kay Lousberg (www.kaylousberg.com), licence
+The KayKit piece models come from two CC0 packs by Kay Lousberg (www.kaylousberg.com), licence
 http://creativecommons.org/publicdomain/zero/1.0/:
 
 - KayKit Character Pack: Adventurers 2.0 (Free) — https://kaylousberg.itch.io/kaykit-adventurers
@@ -11,7 +11,6 @@ author in Settings as thanks.
 
 | File | Piece | Character and weapons | Clips: attack, die (idle `Idle_A`, walk `Walking_A`) |
 |---|---|---|---|
-| `pawn-2.glb` | pawn | Knight, `sword_1handed`, `shield_badge_color` | `Melee_1H_Attack_Chop`, `Death_A` |
 | `knight-1.glb` | knight | Ranger, `bow` | `Ranged_Bow_Release`, `Death_B` |
 | `bishop-2.glb` | bishop | Mage, `staff` | `Ranged_Magic_Shoot`, `Death_A` |
 | `rook-1.glb` | rook | Rogue_Hooded, `dagger` | `Melee_1H_Attack_Stab`, `Death_B` |
@@ -35,3 +34,19 @@ colour is applied at runtime by `GlbPiece`), joins its body into one mesh, and c
 A changed model takes the next number: browsers cache `/models/*` for a year. Skipped on purpose, because a local
 browser may hold an earlier file under that name: `pawn-1.glb` (a stand-in), `bishop-1.glb` (its cape kept its own
 colour) and `king-1.glb` (only its belt took the team colour).
+
+## Living pieces (made in this repository)
+
+Built from scratch by `scripts/blender/living_pieces.py` (Blender 5.3.0), no third-party assets:
+
+| File | Piece |
+|---|---|
+| `pawn-3.glb` | pawn |
+
+From `apps/web`:
+
+```bash
+npm run living -- <piece>      # writes assets-src/living/<piece>.glb, .blend and four preview PNGs
+npm run models -- assets-src/living/<piece>.glb public/models/<piece>-<n>.glb
+npm run living:test            # the building blocks' tests
+```

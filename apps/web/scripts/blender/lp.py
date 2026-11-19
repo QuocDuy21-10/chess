@@ -273,6 +273,7 @@ def material(name, colour, metallic, roughness):
     bsdf.inputs['Metallic'].default_value = metallic
     bsdf.inputs['Roughness'].default_value = roughness
     m.diffuse_color = colour
+    m.use_backface_culling = True  # every part is a closed solid: exported single-sided
     return m
 
 
