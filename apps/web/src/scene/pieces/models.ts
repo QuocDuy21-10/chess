@@ -19,7 +19,7 @@ export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>
   n: { url: '/models/knight-2.glb', clips: CLIPS },
   b: { url: '/models/bishop-4.glb', clips: CHARACTER },
   r: { url: '/models/rook-3.glb', clips: CHARACTER },
-  q: { url: '/models/queen-2.glb', clips: CLIPS },
+  q: { url: '/models/queen-3.glb', clips: CHARACTER },
   k: { url: '/models/king-3.glb', clips: CLIPS },
 };
 
