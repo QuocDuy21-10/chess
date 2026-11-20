@@ -222,37 +222,50 @@ PIECES['bishop'] = bishop
 
 
 def queen():
-    """A coronet of eight balls on a narrow waist. Hip sway; graceful hops; a whirling lash with the coronet flaring;
-    the coronet pops off and the body shatters."""
-    r = 0.32
-    profile = spline(foot(r) + [(0.15, 0.32), (0.10, 0.52), (0.09, 0.62), (0.10, 0.72), (0.10, 0.82), (0.10, 0.82),
-                                (0.17, 0.85), (0.17, 0.885), (0.10, 0.91), (0.10, 0.91), (0.12, 1.0), (0.16, 1.12),
-                                (0.19, 1.21), (0.19, 1.21), (0.19, 1.23), (0.19, 1.23), (0.12, 1.24), (0.06, 1.27),
-                                (0, 1.28)])
-    parts = wedges(lathe(profile), [0.7])
-    parts += [Part(ring(0.185, 0.014, 1.22), 'trim', 'crown'), Part(ball(0.045, z=1.315), 'trim', 'crown')]
-    parts += [Part(ball(0.028, 0.175 * math.cos(a), 0.175 * math.sin(a), 1.255), 'trim', 'crown')
-              for a in (k * TAU / 8 for k in range(8))]
-    parts += [Part(foot_ring(r), 'trim', 'band'), Part(ring(0.17, 0.012, 0.87), 'trim', 'collar')]
-    shards = [f's{i}' for i in range(6)]
-    parent = {'body': None, **{s: 'body' for s in shards}, 'crown': 'body', 'band': 'body', 'collar': 'body'}
+    """Crown, brown hair, a long gown with gold trim, a glowing orb in her right hand. Draws the hand back and thrusts
+    the orb, which flares; steps back with an arm raised when hit; sinks to her knees, slumped."""
+    f = humanoid()
+    orb = f.at('hand_r') + Vector((0, -0.035, -0.045))
+    f.add('flash', 'hand_r', orb)
+    f.add('gown', 'hips', (0, 0, 0.5))
+    points = [Part(cone(0.017, 0.05, (0.085 * math.cos(a), 0.08 * math.sin(a), 0.962), 8), 'trim', 'head')
+              for a in (k * TAU / 6 for k in range(6))]
+    parts = body(f, armour='team', sleeves='team', legs='team') + points + [
+        Part(ellipsoid(0.103, 0.095, 0.105, (0, 0.02, 0.855)), 'hair', 'head'),
+        Part(ellipsoid(0.085, 0.05, 0.12, (0, 0.065, 0.75)), 'hair', 'head'),  # hair down her back
+        Part(hoop(0.087, 0.013, (0, 0, 0.935)), 'trim', 'head'),  # crown
+        Part(hoop(0.05, 0.008, (0, 0, 0.715)), 'trim', 'chest'),  # necklace
+        Part(hoop(0.128, 0.012, (0, 0, 0.5)), 'trim', 'spine'),  # girdle
+        Part(lathe([(0, 0.03), (0.24, 0.03), (0.2, 0.15), (0.15, 0.35), (0.125, 0.5), (0, 0.5)], 28), 'team',
+             'gown'),
+        Part(hoop(0.238, 0.012, (0, 0, 0.034)), 'trim', 'gown'),
+        Part(lp.ball(0.03, *orb), 'glow', 'flash'),
+    ]
 
     def idle(t):  # a slow sway of the hips
-        return {'body': rock(0.03 * math.sin(TAU * t), r) @ turn(0.06 * math.sin(TAU * t), 'Z')}
+        b = math.sin(TAU * t)
+        return {'hips': (0, 0, 0.05 * b), 'chest': (0, 0, -0.04 * b), 'head': (0.02, 0, 0.03 * b)}
 
-    def walk(u):  # light, graceful hops with a sway
-        return {'body': bounce(u, 0.06, 0.08, 0.05) @ turn(0.05 * math.sin(TAU * u), 'Z')}
+    def walk(u):  # light, graceful steps
+        return stride(u, legs=0.25, knees=0.4, arms=0.25, sway=0.06, lean=0.02)
 
-    def attack(t):  # whirls once, leaning out further as she turns, and lashes forward at the contact
-        whirl = -TAU * (1 - ease(span(t, 0.0, 0.6), 0, 1))
-        lean = ease(t, 0, 0.12, 0.22, 0.35, 0.05, 0)
-        flare = 1 + 0.25 * bump(t, 0.6, 0.2)  # the coronet's points spread out at the strike
-        return {'body': turn(whirl, 'Z') @ tip(lean, r), 'crown': stretch(flare, flare, 1, (0, 0, 1.25))}
+    windup = {'arm_up_r': -0.7, 'arm_low_r': 0.6, 'chest': (-0.05, 0, -0.3), 'head': (0, 0, -0.15),
+              'arm_up_l': 0.3, 'flash': (0, 0, 0, 1.5)}
+    strike = {'arm_up_r': 1.55, 'arm_low_r': 0.05, 'chest': (0.1, 0, 0.35), 'spine': 0.05,
+              'flash': (0, 0, 0, 3.5), 'arm_up_l': -0.3, 'leg_up_l': 0.25, 'leg_up_r': -0.2}
+    follow = {**strike, 'arm_up_r': 1.4, 'flash': (0, 0, 0, 1.8)}
+    struck = {**recoil(0.3), 'arm_up_l': 1.2, 'arm_low_l': 1.0}  # an arm raised against the blow
+    staggered = {**struck, 'spine': -0.35}
+    down = {'leg_low_l': -1.6, 'leg_low_r': -1.6, 'gown': (0, 0, 0, 0.75), 'spine': 0.45, 'chest': 0.2, 'head': 0.45,
+            'arm_up_l': 0.3, 'arm_up_r': 0.3, 'arm_low_l': 0.4, 'arm_low_r': 0.4}  # on her knees
 
-    die = crumble(parts, parent, r, ['crown'] + shards + ['band', 'collar'], spread=0.26, jump=0.12, tumble=1.3,
-                  special={'crown': {'spread': 0.2, 'jump': 0.45, 'tumble': 2.5}, **{s: {'start': 0.38} for s in shards},
-                           **FLAT_BANDS})
-    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+    return character(f, parts, {
+        'idle': (90, idle),
+        'walk': (30, walk),
+        'attack': (30, lambda t: through(t, REST, windup, windup, strike, follow, REST)),
+        'hit': (9, lambda t: through(t, REST, struck)),
+        'die': (30, lambda t: through(t, struck, staggered, down, down)),
+    })
 
 
 PIECES['queen'] = queen
