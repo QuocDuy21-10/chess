@@ -272,45 +272,62 @@ PIECES['queen'] = queen
 
 
 def king():
-    """The tallest, with a cross. Stately breathing; heavy hops; rises and hammers down; the cross falls first, then
-    the king topples slowly and cracks."""
-    r = 0.34
-    profile = spline(foot(r) + [(0.16, 0.35), (0.115, 0.60), (0.11, 0.80), (0.11, 0.88), (0.11, 0.88), (0.18, 0.91),
-                                (0.18, 0.945), (0.11, 0.97), (0.11, 0.97), (0.13, 1.07), (0.17, 1.20), (0.20, 1.27),
-                                (0.20, 1.27), (0.20, 1.30), (0.20, 1.30), (0.14, 1.31), (0.07, 1.345), (0, 1.355)])
-    parts = wedges(lathe(profile), [0.75])
-    parts += [Part(block(0.065, 0.065, 0.25, (0, 0, 1.46)), 'trim', 'cross'),
-              Part(block(0.19, 0.065, 0.065, (0, 0, 1.50)), 'trim', 'cross'),
-              Part(foot_ring(r), 'trim', 's0'), Part(ring(0.18, 0.012, 0.93), 'trim', 's3'),
-              Part(ring(0.20, 0.014, 1.285), 'trim', 's3')]
-    names = [f's{i}' for i in range(6)]
-    parent = {'body': None, **{s: 'body' for s in names}, 'cross': 'body'}
-    cross = shards_of(parts, parent, ['cross'])[0]
-    shards = shards_of(parts, parent, names)
-    lying = topple_angle([v.co for p in parts if p.bone != 'cross' for v in p.mesh.verts], r)
+    """Crown, beard, a fur-trimmed cloak, silver armour, a sword. Raises the sword and slashes down, steps back with
+    the cloak swinging when hit, falls forward with the cloak over him and the crown kept."""
+    f = humanoid()
+    grip = f.at('hand_r') + Vector((0, -0.005, -0.035))
+    f.add('weapon', 'hand_r', f.at('hand_r'))
+    f.add('cloak', 'chest', (0, 0.13, 0.70), True)
+    cloak = [(-0.21, -0.55), (0.21, -0.55), (0.16, 0), (-0.16, 0)]
+    points = [Part(cone(0.02, 0.06, (0.093 * math.cos(a), 0.088 * math.sin(a), 0.965), 8), 'trim', 'head')
+              for a in (k * TAU / 5 + TAU / 4 for k in range(5))]
+    parts = body(f) + points + [
+        Part(ellipsoid(0.1, 0.092, 0.09, (0, 0.02, 0.86)), 'hair', 'head'),
+        Part(ellipsoid(0.08, 0.055, 0.075, (0, -0.07, 0.785)), 'hair', 'head'),  # beard
+        Part(ellipsoid(0.05, 0.022, 0.016, (0, -0.092, 0.808)), 'hair', 'head'),  # moustache
+        Part(dome(0.082, 0.925), 'team', 'head'),  # the velvet cap inside the crown
+        Part(hoop(0.095, 0.015, (0, 0, 0.93)), 'trim', 'head'),  # crown
+        Part(lathe([(0, 0.29), (0.19, 0.29), (0.172, 0.36), (0.148, 0.45), (0.14, 0.53), (0, 0.53)], 24), 'team',
+             'hips'),  # tabard
+        Part(hoop(0.188, 0.011, (0, 0, 0.293)), 'trim', 'hips'),
+        Part(hoop(0.133, 0.014, (0, 0, 0.47)), 'trim', 'spine'),  # a gold belt
+        Part(plate(cloak, 0.025, (0, 0.13, 0.70), (0, 1, 0)), 'team', 'cloak'),
+        Part(block(0.44, 0.04, 0.035, (0, 0.13, 0.155)), 'white', 'cloak'),  # its fur hem
+        Part(hoop(0.12, 0.032, (0, 0.01, 0.715)), 'white', 'chest'),  # fur collar
+        Part(block(0.05, 0.014, 0.50, grip + Vector((0, 0, 0.32))), 'steel', 'weapon'),  # blade
+        Part(block(0.15, 0.024, 0.024, grip + Vector((0, 0, 0.065))), 'trim', 'weapon'),  # crossguard
+        Part(lp.ball(0.022, *(grip + Vector((0, 0, -0.055)))), 'trim', 'weapon'),  # pommel
+    ]
 
-    def idle(t):  # slow and stately breathing
-        b = 0.5 - 0.5 * math.cos(TAU * t)
-        return {'body': rock(0.01 * math.sin(TAU * t), r) @ stretch(1 - 0.004 * b, 1 - 0.004 * b, 1 + 0.008 * b)}
+    def level(arm_up, arm_low, chest=0.0, spine=0.0):
+        """The sword's forward turn that holds it level, point ahead."""
+        return math.pi / 2 + arm_up + arm_low - chest - spine
 
-    def walk(u):  # heavy, dignified hops
-        return {'body': bounce(u, 0.04, 0.06, 0.03)}
+    def idle(t):  # slow and stately
+        b = math.sin(TAU * t)
+        return {'chest': 0.015 * b, 'head': (-0.02 * b, 0, 0.04 * math.sin(2 * TAU * t)), 'cloak': -0.03 * b}
 
-    def attack(t):  # rises tall, then hammers down like a gavel at the contact
-        rise = ease(t, 0, 0.5, 1.0, -0.4, 0, 0)
-        return {'body': tip(ease(t, 0, -0.05, -0.10, 0.45, 0.08, 0), r)
-                @ stretch(1 - 0.04 * rise, 1 - 0.04 * rise, 1 + 0.10 * rise)}
+    def walk(u):  # heavy, dignified steps, the cloak swaying behind
+        return {**stride(u, legs=0.35, knees=0.55, arms=0.2, sway=0.05, lean=0.03),
+                'arm_up_r': 0.06, 'cloak': -0.15 + 0.05 * math.cos(2 * TAU * u)}
 
-    def die(t):  # a short jolt; the cross falls; the king topples slowly; its halves crack apart
-        if t < 0.15:
-            return {'body': tip(-0.2 * math.sin(math.pi * span(t, 0, 0.15)), r)}
-        body = tip(ease(span(t, 0.3, 0.9), 0, lying), r)
-        flying = fall(cross, span(t, 0.15, 0.7), spread=0.25, jump=0.2, tumble=1.6, towards=(0.7, 0.7, 0))
-        crack = 0.035 * ease(span(t, 0.85, 1.0), 0, 1)  # along X, which stays level while it topples about X
-        return {'body': body, 'cross': body.inverted() @ flying,
-                **{s.bone: move(x=crack if s.centre.x > 0 else -crack) for s in shards}}
+    windup = {'arm_up_r': 2.6, 'arm_low_r': 0.4, 'chest': (-0.15, 0, -0.2), 'spine': -0.08, 'head': -0.1,
+              'cloak': -0.2, 'arm_up_l': 0.3}
+    strike = {'arm_up_r': 1.3, 'arm_low_r': 0.15, 'weapon': level(1.3, 0.15, 0.2, 0.1), 'chest': (0.2, 0, 0.25),
+              'spine': 0.1, 'cloak': -0.35, 'leg_up_l': 0.45, 'leg_low_l': -0.25, 'leg_up_r': -0.35}
+    follow = {**strike, 'arm_up_r': 0.8, 'weapon': level(0.8, 0.15, 0.2, 0.1) + 0.6, 'cloak': -0.25}
+    struck = {**recoil(0.3), 'cloak': -0.6, 'arm_up_r': 0.3}  # the cloak swings out behind
+    staggered = {**struck, 'spine': -0.45, 'root': (0, -0.2, 0)}
+    down = {'root': 1.45, 'spine': 0.1, 'head': (-0.3, 0, 0.9), 'arm_up_l': 1.2, 'arm_up_r': 1.0, 'cloak': 0.1,
+            'leg_low_l': -0.3}  # face down, the cloak flat over his back, his face turned aside
 
-    return Piece(parts, parent, {'idle': (90, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+    return character(f, parts, {
+        'idle': (90, idle),
+        'walk': (30, walk),
+        'attack': (30, lambda t: through(t, REST, windup, windup, strike, follow, REST)),
+        'hit': (9, lambda t: through(t, REST, struck)),
+        'die': (30, lambda t: through(t, struck, staggered, down, down)),
+    })
 
 
 PIECES['king'] = king
