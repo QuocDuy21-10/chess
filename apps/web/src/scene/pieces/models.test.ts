@@ -59,3 +59,7 @@ test('every listed clip is an animation in its file', () => {
     for (const name of Object.values(clips)) expect(names, `${url} has no clip named ${name}`).toContain(name);
   }
 });
+
+test('every model is a character: its clips include the hit', () => {
+  for (const [, { url, clips }] of listed) expect(clips?.hit, url).toBe('hit');
+});

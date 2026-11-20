@@ -5,22 +5,21 @@ export interface Clips {
   idle: string;
   walk: string;
   attack: string;
-  hit?: string;
+  hit: string;
   die: string;
 }
 
-// scripts/blender/living_pieces.py names every model's clips the same way; character pieces (figure.py) add a hit.
-const CLIPS: Clips = { idle: 'idle', walk: 'walk', attack: 'attack', die: 'die' };
-export const CHARACTER: Clips = { ...CLIPS, hit: 'hit' };
+// scripts/blender/living_pieces.py names every model's clips the same way.
+const CLIPS: Clips = { idle: 'idle', walk: 'walk', attack: 'attack', hit: 'hit', die: 'die' };
 
 /** Piece types drawn from a .glb model. A type not listed here uses its model built in code. */
 export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>> = {
-  p: { url: '/models/pawn-4.glb', clips: CHARACTER },
-  n: { url: '/models/knight-3.glb', clips: CHARACTER },
-  b: { url: '/models/bishop-4.glb', clips: CHARACTER },
-  r: { url: '/models/rook-3.glb', clips: CHARACTER },
-  q: { url: '/models/queen-3.glb', clips: CHARACTER },
-  k: { url: '/models/king-4.glb', clips: CHARACTER },
+  p: { url: '/models/pawn-4.glb', clips: CLIPS },
+  n: { url: '/models/knight-3.glb', clips: CLIPS },
+  b: { url: '/models/bishop-4.glb', clips: CLIPS },
+  r: { url: '/models/rook-3.glb', clips: CLIPS },
+  q: { url: '/models/queen-3.glb', clips: CLIPS },
+  k: { url: '/models/king-4.glb', clips: CLIPS },
 };
 
 /** A model is scaled to this height, in squares. */

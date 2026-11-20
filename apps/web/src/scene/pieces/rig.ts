@@ -6,7 +6,7 @@ export interface Rig {
   stride(phase: number): void;
   /** Attack pose at progress t (0..1). Must be back at rest when t = 1. */
   attack(t: number): void;
-  /** Hit pose at progress t (0..1): the recoil from a blow, played before die. Models without one keep idling. */
+  /** Hit pose at progress t (0..1): the recoil from a blow, played before die. The built-in models have none. */
   hit?(t: number): void;
   /** Death pose at progress t (0..1). t = 1 is the final pose; the piece is then removed. */
   die(t: number): void;
