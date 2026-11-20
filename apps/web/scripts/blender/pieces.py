@@ -6,7 +6,9 @@ import math
 
 from mathutils import Vector
 
-from figure import REST, body, character, disc, dome, ellipsoid, hoop, humanoid, limb, recoil, star, stride, through
+import lp
+from figure import (REST, body, character, disc, dome, ellipsoid, hoop, humanoid, limb, plate, recoil, star, stride,
+                    through)
 from lp import (Part, Piece, arc, ball, block, bounce, bump, cone, crumble, cut, ease, fall, halves, lathe, move, ring,
                 rock, shards_of, shift, slab, span, spline, stretch, tip, topple_angle, turn)
 
@@ -96,34 +98,65 @@ PIECES['pawn'] = pawn
 
 
 def rook():
-    """A tower with five merlons. Nearly still; heavy rocking; a body-slam; merlons fly off, the tower collapses."""
-    r = 0.34
-    profile = spline(foot(r) + [(0.22, 0.30), (0.21, 0.70), (0.225, 0.92), (0.27, 0.98), (0.27, 0.98), (0.27, 1.08),
-                                (0.27, 1.08), (0.20, 1.08), (0.20, 1.08), (0.20, 1.03), (0.20, 1.03), (0, 1.03)])
-    parts = wedges(lathe(profile), [0.6])
-    merlons = [f'm{k}' for k in range(5)]
-    parts += [Part(block(0.07, 0.18, 0.14, (0.235, 0, 1.15), angle=k * TAU / 5), 'team', m) for k, m in enumerate(merlons)]
-    parts += [Part(foot_ring(r), 'trim', 'band'), Part(ring(0.27, 0.012, 0.995), 'trim', 'collar')]
-    shards = [f's{i}' for i in range(6)]
-    parent = {'body': None, **{s: 'body' for s in shards}, **{m: 'body' for m in merlons}, 'band': 'body', 'collar': 'body'}
+    """Warden: heavy plate, a closed great helm, a tall tower shield with a battlement top on the left arm, a mace.
+    Bashes with the shield, braces behind it when hit, falls backward with the shield across him."""
+    f = humanoid()
+    f.add('weapon', 'hand_r', f.at('hand_r'))
+    f.add('shield', 'arm_low_l', f.at('arm_low_l'))
+    grip = f.at('hand_r') + Vector((0, -0.005, -0.035))
+    face = Vector((0.15, -1, 0)).normalized()
+    centre = f.at('arm_low_l') + Vector((0.08, -0.085, -0.05))
+    w, top, notch = 0.12, 0.19, 0.045  # half its width; the top of its merlons; how deep the notches are
+    battlement = [(-w, -0.21), (w, -0.21), (w, top), (0.6 * w, top), (0.6 * w, top - notch), (0.2 * w, top - notch),
+                  (0.2 * w, top), (-0.2 * w, top), (-0.2 * w, top - notch), (-0.6 * w, top - notch), (-0.6 * w, top),
+                  (-w, top)]
+    parts = body(f) + [
+        Part(lathe([(0, 0.74), (0.106, 0.74), (0.108, 0.90), (0.10, 0.97), (0, 0.975)], 24), 'steel', 'head'),  # great helm
+        Part(block(0.13, 0.03, 0.016, (0, -0.10, 0.855)), 'dark', 'head'),  # its eye slit
+        Part(block(0.014, 0.02, 0.15, (0, -0.104, 0.86)), 'trim', 'head'),  # a gold bar down the face
+        Part(hoop(0.107, 0.01, (0, 0, 0.94)), 'trim', 'head'),
+        Part(ellipsoid(0.085, 0.085, 0.065, f.at('arm_up_l') + Vector((0.02, 0, 0.02))), 'steel', 'arm_up_l'),
+        Part(ellipsoid(0.085, 0.085, 0.065, f.at('arm_up_r') + Vector((-0.02, 0, 0.02))), 'steel', 'arm_up_r'),
+        Part(lathe([(0, 0.26), (0.18, 0.26), (0.162, 0.36), (0.148, 0.45), (0.14, 0.53), (0, 0.53)], 24), 'team',
+             'hips'),  # surcoat
+        Part(hoop(0.178, 0.011, (0, 0, 0.263)), 'trim', 'hips'),
+        Part(hoop(0.133, 0.014, (0, 0, 0.47)), 'leather', 'spine'),
+        Part(limb(grip + Vector((0, 0, -0.06)), grip + Vector((0, 0, 0.26)), 0.014), 'wood', 'weapon'),  # mace haft
+        Part(lp.ball(0.048, *(grip + Vector((0, 0, 0.30)))), 'steel', 'weapon'),  # mace head
+        Part(plate(battlement, 0.035, centre, face), 'team', 'shield'),
+        Part(star(0.055, 0.012, centre + face * 0.022 + Vector((0, 0, -0.02)), face), 'trim', 'shield'),
+    ]
 
-    def idle(t):  # nearly still; each merlon twitches once per loop, at its own moment
-        return {'body': rock(0.008 * math.sin(TAU * t), r),
-                **{m: move(z=0.012 * bump(t, 0.1 + k / 5, 0.05)) for k, m in enumerate(merlons)}}
+    def facing_ahead(arm_up, arm_low, chest=0.0, spine=0.0):
+        """The shield's forward turn that keeps its face toward the facing, for these arm and body turns."""
+        return arm_up + arm_low - chest - spine
 
-    def walk(u):  # heavy side-to-side rocking, upright on each footfall; the merlons rattle
-        rattle = move(z=0.008 * abs(math.sin(2 * TAU * u)))
-        return {'body': move(z=0.02 * abs(math.sin(TAU * u))) @ rock(0.10 * math.sin(TAU * u), r),
-                **{m: rattle for m in merlons}}
+    def idle(t):  # slow, heavy breathing
+        b = math.sin(TAU * t)
+        return {'chest': 0.015 * b, 'head': (0, 0, 0.03 * math.sin(2 * TAU * t))}
 
-    def attack(t):  # tilts back, body-slams forward at the contact; the merlons rattle as it lands
-        body = move(y=ease(t, 0, 0.02, 0.04, -0.06, 0, 0)) @ tip(ease(t, 0, -0.10, -0.20, 0.55, 0.10, 0), r)
-        return {'body': body, **{m: move(z=0.03 * bump(t, 0.64 + 0.02 * k, 0.1)) for k, m in enumerate(merlons)}}
+    def walk(u):  # heavy steps, the shield carried in front
+        return {**stride(u, legs=0.35, knees=0.5, arms=0.12, sway=0.07, lean=0.04),
+                'arm_up_l': 0.35, 'arm_low_l': 0.9, 'shield': facing_ahead(0.35, 0.9, 0.04)}
 
-    die = crumble(parts, parent, r, merlons + shards + ['band', 'collar'], recoil=0.2, spread=0.22, jump=0.06, tumble=0.9,
-                  special={**{m: {'spread': 0.45, 'jump': 0.35, 'tumble': 2.4} for m in merlons},
-                           **{s: {'start': 0.42} for s in shards}, **FLAT_BANDS})
-    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+    windup = {'arm_up_l': 0.1, 'arm_low_l': 1.4, 'shield': facing_ahead(0.1, 1.4, -0.12, -0.05),
+              'chest': (-0.12, 0, 0.35), 'spine': -0.05, 'arm_up_r': -0.2, 'leg_up_l': 0.2, 'leg_up_r': -0.2}
+    strike = {'arm_up_l': 1.2, 'arm_low_l': 0.3, 'shield': facing_ahead(1.2, 0.3, 0.2, 0.12),
+              'chest': (0.2, 0, -0.4), 'spine': 0.12, 'arm_up_r': -0.35, 'lift': (0, -0.06, 0),
+              'leg_up_l': 0.55, 'leg_low_l': -0.3, 'leg_up_r': -0.4}
+    follow = {**strike, 'arm_up_l': 1.0, 'shield': facing_ahead(1.0, 0.3, 0.2, 0.12), 'lift': (0, -0.04, 0)}
+    struck = {**recoil(0.25), 'arm_up_l': 0.45, 'arm_low_l': 1.1, 'shield': facing_ahead(0.45, 1.1, -0.125, -0.25)}
+    staggered = {**struck, 'spine': -0.4, 'root': -0.15}
+    down = {'root': -1.45, 'spine': -0.1, 'head': 0.3, 'arm_up_l': 0.6, 'arm_low_l': 1.6,
+            'shield': facing_ahead(0.6, 1.6, 0, -0.1), 'arm_up_r': 0.2, 'leg_up_l': 0.3, 'leg_up_r': 0.1}  # on his back
+
+    return character(f, parts, {
+        'idle': (90, idle),
+        'walk': (30, walk),
+        'attack': (30, lambda t: through(t, REST, windup, windup, strike, follow, REST)),
+        'hit': (9, lambda t: through(t, REST, struck)),
+        'die': (30, lambda t: through(t, struck, staggered, down, down)),
+    })
 
 
 PIECES['rook'] = rook
