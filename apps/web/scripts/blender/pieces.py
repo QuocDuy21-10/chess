@@ -163,45 +163,59 @@ PIECES['rook'] = rook
 
 
 def bishop():
-    """A mitre with a slit and a ball finial. Praying tilt; smooth glide; a spin and a thrust; the mitre splits and
-    flies off, the body falls over."""
-    r = 0.3
-    profile = spline(foot(r) + [(0.13, 0.35), (0.095, 0.55), (0.09, 0.62), (0.09, 0.62), (0.15, 0.645),
-                                (0.15, 0.675), (0.085, 0.70), (0.085, 0.70), (0, 0.70)])
-    mitre = lathe(spline([(0, 0.69), (0.10, 0.70), (0.15, 0.80), (0.15, 0.90), (0.10, 1.02), (0.035, 1.12),
-                          (0.035, 1.12), (0, 1.12)]))
-    slit_at, slit = (0.0, -0.02, 0.95), (0.0, 0.55, 0.83)  # the cut runs up from the back to the front of the mitre
-    low, high = halves(mitre, slit_at, slit)
-    mitre.free()
-    gap = 0.006  # opens the slit so it shows at rest
-    shift(low, [-gap * c for c in slit])
-    shift(high, [gap * c for c in slit])
-    parts = [Part(lathe(profile), 'team', 'body'), Part(foot_ring(r), 'trim', 'body'),
-             Part(ring(0.15, 0.012, 0.66), 'trim', 'body'), Part(low, 'team', 'mitre_lo'),
-             Part(high, 'team', 'mitre_hi'), Part(ball(0.05, z=1.17), 'trim', 'mitre_hi')]
-    parent = {'body': None, 'mitre_lo': 'body', 'mitre_hi': 'body'}
-    hat = shards_of(parts, parent, ['mitre_hi'])[0]
-    lying = topple_angle([v.co for p in parts if p.bone != 'mitre_hi' for v in p.mesh.verts], r)
+    """Cleric: white beard, tall mitre, long vestments to the floor, a gold crozier with a glowing gem. Raises the
+    crozier and thrusts it with a flash of light, staggers leaning on it when hit, slumps to the ground beside it."""
+    f = humanoid()
+    grip = f.at('hand_r') + Vector((0, -0.005, -0.035))
+    gem = grip + Vector((0, -0.05, 0.60))
+    f.add('weapon', 'hand_r', f.at('hand_r'))
+    f.add('flash', 'weapon', gem)
+    mitre = [(-0.085, 0), (0.085, 0), (0.075, 0.12), (0.04, 0.19), (0, 0.22), (-0.04, 0.19), (-0.075, 0.12)]
+    parts = body(f, armour='white', sleeves='team', legs='white') + [
+        Part(plate(mitre, 0.12, (0, 0, 0.885)), 'team', 'head'),
+        Part(block(0.172, 0.125, 0.022, (0, 0, 0.895)), 'trim', 'head'),  # the mitre's gold band
+        Part(block(0.022, 0.125, 0.19, (0, 0, 0.985)), 'trim', 'head'),  # and its upright stripe
+        Part(ellipsoid(0.075, 0.05, 0.075, (0, -0.07, 0.775)), 'white', 'head'),  # beard
+        Part(ellipsoid(0.05, 0.022, 0.016, (0, -0.092, 0.808)), 'white', 'head'),  # moustache
+        Part(ellipsoid(0.165, 0.125, 0.065, (0, 0, 0.69)), 'team', 'chest'),  # a short cape on the shoulders
+        Part(block(0.02, 0.012, 0.11, (0, -0.122, 0.60)), 'trim', 'chest'),  # a gold cross on the chest
+        Part(block(0.07, 0.012, 0.02, (0, -0.122, 0.62)), 'trim', 'chest'),
+        Part(lathe([(0, 0.03), (0.2, 0.03), (0.17, 0.2), (0.145, 0.4), (0.135, 0.55), (0, 0.55)], 24), 'team',
+             'hips'),  # vestments to the floor
+        Part(hoop(0.198, 0.011, (0, 0, 0.034)), 'trim', 'hips'),
+        Part(limb(grip + Vector((0, 0, -0.40)), grip + Vector((0, 0, 0.56)), 0.013), 'trim', 'weapon'),  # crozier
+        Part(hoop(0.045, 0.011, gem + Vector((0, 0.0, 0.04)), (1, 0, 0)), 'trim', 'weapon'),  # its crook
+        Part(lp.ball(0.026, *gem), 'glow', 'flash'),
+    ]
+
+    def level(arm_up, arm_low, chest=0.0, spine=0.0):
+        """The crozier's forward turn that holds it level, pointing ahead."""
+        return math.pi / 2 + arm_up + arm_low - chest - spine
 
     def idle(t):  # a gentle forward tilt, as if praying
-        return {'body': tip(0.04 * (0.5 - 0.5 * math.cos(TAU * t)), r)}
+        b = math.sin(TAU * t)
+        return {'chest': 0.04 + 0.02 * b, 'head': 0.08 + 0.03 * b}
 
-    def walk(u):  # a smooth glide with little bounce
-        return {'body': bounce(u, 0.025, 0.05, 0.02)}
+    def walk(u):  # a smooth, short-stepped glide
+        return {**stride(u, legs=0.22, knees=0.35, arms=0.1, sway=0.03, lean=0.05), 'arm_up_r': 0.05}
 
-    def attack(t):  # one full turn, then a thrust of the mitre's point at the contact
-        spin = turn(TAU * ease(span(t, 0.0, 0.45), 0, 1), 'Z')
-        return {'body': move(y=ease(t, 0, 0, 0.02, -0.08, 0.01, 0)) @ tip(ease(t, 0, -0.04, -0.12, 0.38, 0.06, 0), r)
-                @ spin}
+    windup = {'arm_up_r': 2.0, 'arm_low_r': 0.3, 'chest': (-0.1, 0, -0.25), 'spine': -0.08, 'head': -0.15,
+              'flash': (0, 0, 0, 1.6)}
+    strike = {'arm_up_r': 1.35, 'arm_low_r': 0.1, 'weapon': level(1.35, 0.1, 0.12, 0.06), 'chest': (0.12, 0, 0.3),
+              'spine': 0.06, 'flash': (0, 0, 0, 4.0), 'leg_up_l': 0.3, 'leg_up_r': -0.2}
+    follow = {**strike, 'arm_up_r': 1.2, 'weapon': level(1.2, 0.1, 0.12, 0.06), 'flash': (0, 0, 0, 2.0)}
+    struck = {**recoil(0.3), 'arm_up_r': 0.25}  # leaning on the crozier
+    staggered = {**struck, 'spine': -0.4, 'root': (0, 0.2, 0)}
+    down = {'root': (0, 1.45, 0), 'spine': 0.3, 'head': (0.3, 0.2, 0), 'arm_up_r': 0.5, 'arm_up_l': 0.4,
+            'leg_up_l': 0.4, 'leg_low_l': -0.5, 'leg_up_r': 0.2}  # on his left side
 
-    def die(t):  # a jolt back, then the mitre's top flies off behind while the body falls forward
-        if t < 0.3:
-            return {'body': tip(-0.25 * math.sin(math.pi * span(t, 0, 0.3)), r)}
-        body = tip(ease(span(t, 0.35, 0.9), 0, lying), r)
-        flying = fall(hat, span(t, 0.3, 0.95), spread=0.3, jump=0.25, tumble=1.8, towards=(0.6, 0.8, 0))
-        return {'body': body, 'mitre_hi': body.inverted() @ flying}
-
-    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+    return character(f, parts, {
+        'idle': (90, idle),
+        'walk': (30, walk),
+        'attack': (30, lambda t: through(t, REST, windup, windup, strike, follow, REST)),
+        'hit': (9, lambda t: through(t, REST, struck)),
+        'die': (30, lambda t: through(t, struck, staggered, down, down)),
+    })
 
 
 PIECES['bishop'] = bishop
