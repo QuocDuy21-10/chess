@@ -157,3 +157,35 @@ E2E not yet verified: the run reused the owner's dev servers on ports 3000/3001,
 suite's signed-in test users, so every page logged `401 (Unauthorized)` and online play could not create a room
 (11 failed, 4 passed; no failure involved a model). It needs the dev servers stopped so the suite starts its own on a
 production build.
+
+## Outcome (2026-11-20)
+
+All six pieces are characters built on `figure.py`; no Staunton model ships, `pieces.py` holds no Staunton code, and
+`hit` is a required clip (a `models.test.ts` guard keeps a model without it from shipping).
+
+| File | Bytes | Bones |
+|---|---|---|
+| `pawn-4.glb` | 126,532 | 20 |
+| `rook-3.glb` | 125,176 | 20 |
+| `bishop-4.glb` | 122,320 | 20 |
+| `queen-3.glb` | 124,580 | 20 |
+| `king-4.glb` | 131,908 | 20 |
+| `knight-3.glb` | 169,036 | 31 |
+
+About 800 KB in all. Part 2 extended `figure.py` with a size component in poses (the bishop's gem and the queen's
+orb swell on the strike), a seated rider on a parent bone (the knight's horse has its own 13 bones), `body()`
+following a raised skeleton, and `plate()` for shaped flat parts (the rook's battlement shield, the bishop's mitre,
+the king's cloak). Changes made by eye before shipping: the rook's tower shield shrank to 24 × 40 cm and moved out to
+the side, so the body shows; the king's blade is wider and longer, and he falls forward (on his side, the cloak stood
+up like a board); the knight's caparison hangs lower. The owner approved all five from the previews and the live
+Blender session and asked for them to ship without further tuning.
+
+Checked in the running game (dev server, two players, 1. Nc3 d5 2. Nxd5 Qxd5 3. e4 Qxa2 4. Rxa2 Bf5 5. exf5, frames
+captured in a Playwright browser): every piece shows in both teams' colours; the knight lunges at the pawn, the queen's
+orb flares as she takes the knight, the queen takes the a2 pawn, the rook bashes the queen with its shield, and the
+pawn's thrust fells the bishop, who falls on his side. Not seen: the end of every death (16 frames cover about 1.6 s
+of each capture), and the king's death, which no game here reaches; it was judged from its preview.
+
+Tests: `npm run living:test` 48 OK; `npm test` server 103, web 164, shared 18; typecheck and lint clean; E2E 15 passed
+in Chromium, Firefox and WebKit on a production build with its own servers (Node 22: the suite's seed script needs
+Node's TypeScript support, and Node 20 fails before any test runs).
