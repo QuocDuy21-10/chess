@@ -50,6 +50,29 @@ class Skeleton(unittest.TestCase):
         f = figure.humanoid()
         self.assertAlmostEqual(tip_of(f, {'lift': (0, 0, 0.1)}, 'foot_l', (0, 0, 0)).z, f.at('foot_l').z + 0.1)
 
+    def test_size_scales_a_part_about_its_joint(self):
+        f = figure.humanoid()
+        f.add('orb', 'hand_r', f.at('hand_r'))
+        self.assertAlmostEqual(tip_of(f, {'orb': (0, 0, 0, 3)}, 'orb', (0, 0, -0.1)).z, f.at('hand_r').z - 0.3)
+        self.assertAlmostEqual(tip_of(f, {'orb': (0, 0, 0, 3)}, 'orb', (0, 0, 0)).z, f.at('hand_r').z)
+
+    def test_a_rider_sits_on_its_parent_bone_and_follows_it(self):
+        f = figure.Figure()
+        f.add('root', None, (0, 0, 0))
+        f.add('horse', 'root', (0, 0, 0.45))
+        figure.humanoid(f, base=(0, 0, 0.16), parent='horse', seated=True)
+        self.assertEqual(f.joints['hips'].parent, 'horse')
+        self.assertAlmostEqual(f.at('hips').z, 0.58)
+        self.assertLess(f.at('leg_low_l').y, -0.05)  # the knees reach forward, astride
+        self.assertLess(tip_of(f, {'horse': 0.3}, 'head', (0, 0, 0)).y, f.at('head').y - 0.05)
+
+    def test_the_body_follows_a_raised_skeleton(self):
+        f = figure.Figure()
+        f.add('root', None, (0, 0, 0))
+        figure.humanoid(f, base=(0, 0, 0.2))
+        parts = figure.body(f)
+        self.assertAlmostEqual(min(v.co.z for p in parts for v in p.mesh.verts), 0.2, places=4)
+
     def test_an_unknown_bone_is_refused(self):
         with self.assertRaisesRegex(AssertionError, 'unknown bone tail'):
             figure.humanoid().local({'tail': 0.1})
@@ -58,9 +81,9 @@ class Skeleton(unittest.TestCase):
 class Clips(unittest.TestCase):
     def test_through_lands_on_its_keys_and_rests_a_missing_bone(self):
         a, b = {'head': 0.2}, {'head': (0.4, 0.1, 0), 'chest': 0.3}
-        self.assertEqual(figure.through(0, a, b)['head'], (0.2, 0.0, 0.0))
-        self.assertEqual(figure.through(1, a, b)['head'], (0.4, 0.1, 0.0))
-        self.assertEqual(figure.through(0, a, b)['chest'], (0.0, 0.0, 0.0))
+        self.assertEqual(figure.through(0, a, b)['head'], (0.2, 0.0, 0.0, 1.0))
+        self.assertEqual(figure.through(1, a, b)['head'], (0.4, 0.1, 0.0, 1.0))
+        self.assertEqual(figure.through(0, a, b)['chest'], (0.0, 0.0, 0.0, 1.0))
 
     def test_stride_loops_and_steps_with_alternate_feet(self):
         f = figure.humanoid()
@@ -90,7 +113,9 @@ class Geometry(unittest.TestCase):
     def test_every_shape_is_a_closed_solid(self):
         shapes = [figure.limb((0, 0, 0), (0.1, -0.2, 0.3), 0.03, 0.02), figure.limb((0, 0, 1), (0, 0, 0), 0.05),
                   figure.ellipsoid(0.1, 0.2, 0.3, (0, 0, 1)), figure.dome(0.1, 0.9), figure.disc(0.1, 0.02, (0, 0, 0.5)),
-                  figure.hoop(0.1, 0.01, (0, 0, 0.5), (0, -1, 0)), figure.star(0.06, 0.01, (0, 0, 0.5))]
+                  figure.hoop(0.1, 0.01, (0, 0, 0.5), (0, -1, 0)), figure.star(0.06, 0.01, (0, 0, 0.5)),
+                  figure.plate([(-0.1, 0), (0.1, 0), (0.1, 0.2), (0.03, 0.2), (0.03, 0.15), (-0.03, 0.15),
+                                (-0.03, 0.2), (-0.1, 0.2)], 0.02, (0, 0, 0.5))]
         for bm in shapes:
             self.assertTrue(manifold(bm))
             self.assertGreater(bm.calc_volume(), 0)
@@ -106,6 +131,12 @@ class Geometry(unittest.TestCase):
         ys = [v.co.y for v in bm.verts]
         self.assertLess(min(ys), -0.02)  # the domed face bulges toward -Y
         self.assertAlmostEqual(max(ys), 0.0, places=6)
+
+    def test_a_plate_facing_minus_y_runs_across_x(self):
+        bm = figure.plate([(-0.1, 0), (0.1, 0), (0.1, 0.2), (-0.1, 0.2)], 0.02, (0, 0, 0.5))
+        xs, ys = [v.co.x for v in bm.verts], [v.co.y for v in bm.verts]
+        self.assertAlmostEqual(max(xs) - min(xs), 0.2, places=4)
+        self.assertAlmostEqual(max(ys) - min(ys), 0.02, places=4)
 
     def test_the_body_stands_on_the_floor_on_its_own_bones(self):
         f = figure.humanoid()

@@ -44,6 +44,7 @@ MATERIALS = {
     'wood': (srgb('#8A5A32'), 0.0, 0.65, 0.0),
     'hair': (srgb('#5A3A22'), 0.0, 0.75, 0.0),
     'white': (srgb('#EDEAE2'), 0.0, 0.8, 0.0),
+    'coat': (srgb('#C9BCA6'), 0.0, 0.7, 0.0),  # the knight's horse
     'glow': (srgb('#FFE9A8'), 0.0, 0.4, 6.0),
 }
 

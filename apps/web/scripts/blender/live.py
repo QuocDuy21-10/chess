@@ -1,6 +1,10 @@
-"""Builds a piece in the open Blender scene and plays one clip, for tuning it live. In Blender: Text > Open this file,
-set PIECE and CLIP, then Run Script (Alt+P); edit pieces.py or figure.py and run again. It saves and exports nothing:
-npm run living -- <piece> builds the shipped model from the same code."""
+"""Builds a piece in the open Blender scene and plays one clip, for tuning it live. In Blender's Python console:
+
+    P = '/Users/dinhduy/Workspace/chess/apps/web/scripts/blender/live.py'
+    exec(compile(open(P).read(), P, 'exec'), {'__file__': P, 'PIECE': 'rook', 'CLIP': 'attack'})
+
+(or Text > Open this file and Run Script, for the pawn's attack). Edit pieces.py or figure.py and run it again. It
+saves and exports nothing: npm run living -- <piece> builds the shipped model from the same code."""
 import importlib
 import os
 import sys
@@ -8,8 +12,8 @@ import sys
 import bpy
 from mathutils import Euler
 
-PIECE = 'pawn'
-CLIP = 'attack'  # idle, walk, attack, hit or die
+PIECE = globals().get('PIECE', 'pawn')  # the console run above passes these in
+CLIP = globals().get('CLIP', 'attack')  # idle, walk, attack, hit or die
 
 space = getattr(bpy.context, 'space_data', None)
 text = space.text if space is not None and space.type == 'TEXT_EDITOR' else None

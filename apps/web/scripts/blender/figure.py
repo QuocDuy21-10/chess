@@ -1,9 +1,9 @@
 """Character pieces: a stocky humanoid skeleton, its body parts, and clips written as joint angles.
 
-A pose is a dict {bone: angles}. `angles` is a number (forward) or a tuple (forward, side, twist), in radians:
-forward > 0 swings the far end of the part toward the facing (-Y), side > 0 toward +X, twist > 0 turns it
-counter-clockwise seen from above. The key 'lift' is a translation (x, y, z) of the whole figure. A bone left out is
-at rest. character() settles every frame on the floor, so a pose never says how high the figure stands.
+A pose is a dict {bone: angles}. `angles` is a number (forward) or a tuple (forward, side, twist) or (forward, side,
+twist, size), in radians: forward > 0 swings the far end of the part toward the facing (-Y), side > 0 toward +X,
+twist > 0 turns it counter-clockwise seen from above; size scales the part about its joint (1 at rest: a glowing orb
+that swells on a strike). The key 'lift' is a translation (x, y, z) of the whole figure. A bone left out is at rest. character() settles every frame on the floor, so a pose never says how high the figure stands.
 Spec: docs/superpowers/specs/2026-11-19-character-pieces-design.md.
 """
 import math
@@ -15,6 +15,7 @@ from mathutils import Euler, Matrix, Vector
 import lp
 
 ZERO = (0.0, 0.0, 0.0)
+STILL = (0.0, 0.0, 0.0, 1.0)  # the angles of a bone at rest
 REST = {}
 SIDES = (('l', 1), ('r', -1))  # the figure faces -Y, so its left side is +X
 
@@ -50,41 +51,49 @@ class Figure:
             if bone == 'lift':
                 continue
             lp.need(bone in self.joints, f'a pose turns the unknown bone {bone}')
-            forward, side, twist = angles(value)
+            forward, side, twist, size = angles(value)
             joint = self.joints[bone]
             sign = -1.0 if joint.down else 1.0
             p = Vector(joint.pivot)
             spin = Euler((sign * forward, sign * side, twist)).to_matrix().to_4x4()
+            if size != 1.0:
+                spin = spin @ Matrix.Scale(size, 4)
             out[bone] = Matrix.Translation(p) @ spin @ Matrix.Translation(-p)
-        lift = angles(pose.get('lift', ZERO))
+        lift = angles(pose.get('lift', ZERO))[:3]
         if any(lift):
             out['root'] = lp.move(*lift) @ out.get('root', lp.IDENTITY)
         return out
 
 
 def angles(value):
-    """(forward, side, twist) from a pose value: a number means a forward swing."""
+    """(forward, side, twist, size) from a pose value: a number means a forward swing; size defaults to 1."""
     if isinstance(value, (int, float)):
-        return (float(value), 0.0, 0.0)
-    return tuple(float(v) for v in value)
+        return (float(value), 0.0, 0.0, 1.0)
+    values = tuple(float(v) for v in value)
+    return values + (1.0,) if len(values) == 3 else values
 
 
-def humanoid():
-    """The shared skeleton: a figure 1.0 tall (about 4.5 heads), feet on z = 0, facing -Y. 18 bones."""
-    f = Figure()
-    f.add('root', None, ZERO)
-    f.add('hips', 'root', (0, 0, 0.42))
-    f.add('spine', 'hips', (0, 0, 0.48))
-    f.add('chest', 'spine', (0, 0, 0.58))
-    f.add('neck', 'chest', (0, 0, 0.72))
-    f.add('head', 'neck', (0, 0, 0.75))
+def humanoid(f=None, base=ZERO, parent='root', seated=False):
+    """The shared skeleton: a figure 1.0 tall (about 4.5 heads), feet on z = 0, facing -Y. 18 bones. Given a figure
+    `f`, adds the 17 bones below 'root' to it instead, raised by `base` and with the hips on `parent`; `seated` bends
+    the legs to sit astride a horse (the knight)."""
+    if f is None:
+        f = Figure()
+        f.add('root', None, ZERO)
+    o = Vector(base)
+    f.add('hips', parent, o + Vector((0, 0, 0.42)))
+    f.add('spine', 'hips', o + Vector((0, 0, 0.48)))
+    f.add('chest', 'spine', o + Vector((0, 0, 0.58)))
+    f.add('neck', 'chest', o + Vector((0, 0, 0.72)))
+    f.add('head', 'neck', o + Vector((0, 0, 0.75)))
     for side, s in SIDES:
-        f.add(f'arm_up_{side}', 'chest', (0.15 * s, 0, 0.68), True)
-        f.add(f'arm_low_{side}', f'arm_up_{side}', (0.165 * s, 0, 0.555), True)
-        f.add(f'hand_{side}', f'arm_low_{side}', (0.175 * s, -0.01, 0.44), True)
-        f.add(f'leg_up_{side}', 'hips', (0.07 * s, 0, 0.41), True)
-        f.add(f'leg_low_{side}', f'leg_up_{side}', (0.075 * s, 0, 0.23), True)
-        f.add(f'foot_{side}', f'leg_low_{side}', (0.075 * s, 0, 0.07), True)
+        f.add(f'arm_up_{side}', 'chest', o + Vector((0.15 * s, 0, 0.68)), True)
+        f.add(f'arm_low_{side}', f'arm_up_{side}', o + Vector((0.165 * s, 0, 0.555)), True)
+        f.add(f'hand_{side}', f'arm_low_{side}', o + Vector((0.175 * s, -0.01, 0.44)), True)
+        knee, ankle = ((0.17 * s, -0.10, 0.31), (0.18 * s, -0.07, 0.14)) if seated else ((0.075 * s, 0, 0.23), (0.075 * s, 0, 0.07))
+        f.add(f'leg_up_{side}', 'hips', o + Vector((0.07 * s, 0, 0.41)), True)
+        f.add(f'leg_low_{side}', f'leg_up_{side}', o + Vector(knee), True)
+        f.add(f'foot_{side}', f'leg_low_{side}', o + Vector(ankle), True)
     return f
 
 
@@ -93,7 +102,7 @@ def humanoid():
 def through(t, *poses):
     """The pose at t through equally spaced key poses, easing in and out of each, like lp.ease."""
     bones = sorted(set().union(*poses))
-    return {b: tuple(lp.ease(t, *(angles(p.get(b, ZERO))[i] for p in poses)) for i in range(3)) for b in bones}
+    return {b: tuple(lp.ease(t, *(angles(p.get(b, STILL))[i] for p in poses)) for i in range(4)) for b in bones}
 
 
 def stride(u, legs=0.45, knees=0.7, arms=0.35, sway=0.05, lean=0.06):
@@ -177,6 +186,14 @@ def hoop(radius, thickness, at, toward=(0, 0, 1), steps=32):
     return place(lp.ring(radius, thickness, 0.0, steps), Matrix.Translation(at) @ facing(toward))
 
 
+def plate(outline, depth, at, toward=(0, -1, 0)):
+    """A flat plate `depth` thick cut to `outline` [(across, up)], centred on `at` with its face toward `toward`: a
+    tower shield, a mitre, a cloak. Facing -Y, `across` runs along +X."""
+    bm = lp.slab(outline, depth, 0.2 * depth)  # a plate in YZ, thick along X
+    turn = Vector((1, 0, 0)).rotation_difference(Vector(toward)).to_matrix().to_4x4()
+    return place(bm, Matrix.Translation(at) @ turn)
+
+
 def star(radius, depth, at, toward=(0, -1, 0), points=5):
     """A flat star `depth` thick, its face toward `toward`, one point up: the emblem both teams wear."""
     outline = []
@@ -184,23 +201,24 @@ def star(radius, depth, at, toward=(0, -1, 0), points=5):
         r = radius if i % 2 == 0 else 0.45 * radius
         a = math.pi / 2 + i * math.pi / points
         outline.append((r * math.cos(a), r * math.sin(a)))
-    bm = lp.slab(outline, depth, 0.2 * depth)  # a plate in YZ, thick along X
-    turn = Vector((1, 0, 0)).rotation_difference(Vector(toward)).to_matrix().to_4x4()
-    return place(bm, Matrix.Translation(at) @ turn)
+    return plate(outline, depth, at, toward)
 
 
 def body(f, armour='steel', sleeves='steel', legs='steel'):
-    """The parts every humanoid character shares: head with a face, neck, chest, belly, hips, limbs, hands, boots."""
+    """The parts every humanoid character shares: head with a face, neck, chest, belly, hips, limbs, hands, boots.
+    They follow the skeleton, wherever humanoid() put it."""
     P = lp.Part
+    o = f.at('hips') - Vector((0, 0, 0.42))  # how far the skeleton was raised
+    at = lambda x, y, z: o + Vector((x, y, z))  # noqa: E731
     parts = [
-        P(ellipsoid(0.095, 0.09, 0.1, (0, 0, 0.84)), 'skin', 'head'),
-        P(lp.ball(0.012, -0.032, -0.081, 0.85), 'dark', 'head'),
-        P(lp.ball(0.012, 0.032, -0.081, 0.85), 'dark', 'head'),
-        P(lp.ball(0.017, 0, -0.092, 0.825), 'skin', 'head'),
-        P(limb((0, 0, 0.70), (0, 0, 0.77), 0.04), 'skin', 'neck'),
-        P(ellipsoid(0.15, 0.11, 0.12, (0, 0, 0.63)), armour, 'chest'),
-        P(ellipsoid(0.13, 0.10, 0.08, (0, 0, 0.50)), armour, 'spine'),
-        P(ellipsoid(0.12, 0.09, 0.07, (0, 0, 0.43)), 'leather', 'hips'),
+        P(ellipsoid(0.095, 0.09, 0.1, at(0, 0, 0.84)), 'skin', 'head'),
+        P(lp.ball(0.012, *at(-0.032, -0.081, 0.85)), 'dark', 'head'),
+        P(lp.ball(0.012, *at(0.032, -0.081, 0.85)), 'dark', 'head'),
+        P(lp.ball(0.017, *at(0, -0.092, 0.825)), 'skin', 'head'),
+        P(limb(at(0, 0, 0.70), at(0, 0, 0.77), 0.04), 'skin', 'neck'),
+        P(ellipsoid(0.15, 0.11, 0.12, at(0, 0, 0.63)), armour, 'chest'),
+        P(ellipsoid(0.13, 0.10, 0.08, at(0, 0, 0.50)), armour, 'spine'),
+        P(ellipsoid(0.12, 0.09, 0.07, at(0, 0, 0.43)), 'leather', 'hips'),
     ]
     for side, s in SIDES:
         shoulder, elbow, wrist = f.at(f'arm_up_{side}'), f.at(f'arm_low_{side}'), f.at(f'hand_{side}')
