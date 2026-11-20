@@ -57,7 +57,7 @@ mesh that grows and shrinks, not particles.
 | Bishop | Cleric: white beard, tall mitre, long vestments, gold crozier | Raises the crozier → thrusts it with a holy flash | Staggers, leaning on the crozier | Slumps to the ground beside the crozier |
 | Knight | Plumed rider with a lance on a small armoured horse with a team caparison | Lowers the lance → the horse lunges and the lance strikes | The horse rears and the rider leans back | The horse kneels and the rider slumps forward |
 | Queen | Crown, brown hair, long gown with gold trim | Draws a hand back → thrusts it with a small magic orb | Steps back with an arm raised | Sinks to her knees, slumped |
-| King | Crown, beard, fur-trimmed cloak, silver armour, sword | Raises the sword → slashes down | Steps back, the cloak swinging | Falls on his side, crown kept |
+| King | Crown, beard, fur-trimmed cloak, silver armour, sword | Raises the sword → slashes down | Steps back, the cloak swinging | Falls forward, the cloak flat over his back, crown kept |
 
 ## Rig
 

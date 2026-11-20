@@ -9,7 +9,7 @@ The pawn is a character built on `scripts/blender/figure.py`; the others are sti
 | `rook-3.glb` | rook (character) |
 | `bishop-4.glb` | bishop (character) |
 | `queen-3.glb` | queen (character) |
-| `king-3.glb` | king |
+| `king-4.glb` | king (character) |
 | `knight-2.glb` | knight |
 
 From `apps/web`:

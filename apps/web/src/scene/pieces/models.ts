@@ -20,7 +20,7 @@ export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>
   b: { url: '/models/bishop-4.glb', clips: CHARACTER },
   r: { url: '/models/rook-3.glb', clips: CHARACTER },
   q: { url: '/models/queen-3.glb', clips: CHARACTER },
-  k: { url: '/models/king-3.glb', clips: CLIPS },
+  k: { url: '/models/king-4.glb', clips: CHARACTER },
 };
 
 /** A model is scaled to this height, in squares. */
