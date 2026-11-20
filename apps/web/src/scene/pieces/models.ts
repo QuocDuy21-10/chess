@@ -16,7 +16,7 @@ export const CHARACTER: Clips = { ...CLIPS, hit: 'hit' };
 /** Piece types drawn from a .glb model. A type not listed here uses its model built in code. */
 export const MODELS: Partial<Record<PieceSymbol, { url: string; clips?: Clips }>> = {
   p: { url: '/models/pawn-4.glb', clips: CHARACTER },
-  n: { url: '/models/knight-2.glb', clips: CLIPS },
+  n: { url: '/models/knight-3.glb', clips: CHARACTER },
   b: { url: '/models/bishop-4.glb', clips: CHARACTER },
   r: { url: '/models/rook-3.glb', clips: CHARACTER },
   q: { url: '/models/queen-3.glb', clips: CHARACTER },
