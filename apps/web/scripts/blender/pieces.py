@@ -7,8 +7,8 @@ import math
 from mathutils import Vector
 
 import lp
-from figure import (REST, body, character, disc, dome, ellipsoid, hoop, humanoid, limb, plate, recoil, star, stride,
-                    through)
+from figure import (REST, Figure, body, character, disc, dome, ellipsoid, hoop, humanoid, limb, plate, recoil, star,
+                    stride, through)
 from lp import (Part, Piece, arc, ball, block, bounce, bump, cone, crumble, cut, ease, fall, halves, lathe, move, ring,
                 rock, shards_of, shift, slab, span, spline, stretch, tip, topple_angle, turn)
 
@@ -333,59 +333,94 @@ def king():
 PIECES['king'] = king
 
 
-HORSE = [(0.17, 0.28), (0.20, 0.55), (0.17, 0.80), (0.10, 1.00), (0.00, 1.15), (-0.08, 1.12), (-0.15, 1.00),
-         (-0.32, 0.88), (-0.34, 0.80), (-0.28, 0.74), (-0.16, 0.76), (-0.08, 0.66), (-0.15, 0.50), (-0.16, 0.35),
-         (-0.12, 0.28)]  # a horse's head and neck in profile, (y, z), facing -Y
-MANE = [(0.205, 0.62), (0.195, 0.72), (0.18, 0.82), (0.145, 0.92), (0.10, 1.02)]  # just proud of the neck's back
+HORSE_LEGS = {'fl': (1, -1), 'fr': (-1, -1), 'hl': (1, 1), 'hr': (-1, 1)}  # leg -> (side, end): end -1 is the front
 
 
 def knight():
-    """A carved horse's head on a neck, with ears, gold eyes and mane. Nods and flicks its ears; trots; rears up and
-    strikes down with its head; the head breaks off, the neck falls forward, the base shatters."""
-    r = 0.32
-    profile = spline(foot(r) + [(0.19, 0.22), (0.20, 0.27), (0.20, 0.27), (0.21, 0.29), (0.21, 0.31), (0.21, 0.31),
-                                (0, 0.31)])
-    throat, split = (0.0, -0.08, 0.66), (0.0, -0.49, 0.87)  # a plane from the throat up to the back of the neck
-    carved = slab(HORSE, 0.2, 0.04)
-    neck, head = halves(carved, throat, split)
-    carved.free()
+    """A plumed rider with a lance on a small horse in a team caparison. Lowers the lance and the horse lunges, the
+    horse rears and the rider leans back when hit, the horse kneels and the rider slumps forward in death."""
+    f = Figure()
+    f.add('root', None, (0, 0, 0))
+    f.add('horse_body', 'root', (0, 0, 0.45))
+    f.add('horse_neck', 'horse_body', (0, -0.20, 0.52))
+    f.add('horse_head', 'horse_neck', (0, -0.30, 0.72))
+    f.add('horse_tail', 'horse_body', (0, 0.26, 0.52), True)
+    for leg, (s, e) in HORSE_LEGS.items():
+        f.add(f'horse_leg_{leg}', 'horse_body', (0.07 * s, 0.18 * e, 0.40), True)
+        f.add(f'horse_shin_{leg}', f'horse_leg_{leg}', (0.07 * s, 0.18 * e, 0.21), True)
+    humanoid(f, base=(0, 0, 0.16), parent='horse_body', seated=True)  # the rider's hips on the saddle, at 0.58
+    f.add('weapon', 'hand_r', f.at('hand_r'))
+    grip = f.at('hand_r') + Vector((0, -0.005, -0.035))
+    rider = Vector((0, 0, 0.16))
+    side = Vector((1, 0, 0))
+    parts = body(f) + [
+        Part(dome(0.105, 0.87 + rider.z), 'steel', 'head'),
+        Part(hoop(0.11, 0.012, rider + Vector((0, 0, 0.872))), 'trim', 'head'),
+        Part(ellipsoid(0.03, 0.09, 0.055, rider + Vector((0, 0.03, 1.0))), 'team', 'head'),  # plume
+        Part(ellipsoid(0.155, 0.115, 0.085, rider + Vector((0, 0, 0.60))), 'team', 'chest'),  # surcoat
+        Part(limb(grip + Vector((0, 0, -0.20)), grip + Vector((0, 0, 0.58)), 0.014), 'wood', 'weapon'),  # lance
+        Part(cone(0.024, 0.08, grip + Vector((0, 0, 0.62)), 8), 'steel', 'weapon'),
+        Part(cone(0.04, 0.08, grip + Vector((0, 0, 0.07)), 12), 'trim', 'weapon'),  # its hand guard
+        Part(ellipsoid(0.13, 0.27, 0.13, (0, 0, 0.45)), 'coat', 'horse_body'),
+        Part(ellipsoid(0.152, 0.30, 0.135, (0, 0, 0.42)), 'team', 'horse_body'),  # caparison, hanging low
+        Part(star(0.05, 0.012, (0.154, 0, 0.42), side), 'trim', 'horse_body'),
+        Part(star(0.05, 0.012, (-0.154, 0, 0.42), -side), 'trim', 'horse_body'),
+        Part(limb((0, -0.20, 0.52), (0, -0.30, 0.70), 0.065, 0.05), 'coat', 'horse_neck'),
+        Part(limb((0, -0.15, 0.60), (0, -0.25, 0.77), 0.025), 'hair', 'horse_neck'),  # mane
+        Part(limb((0, -0.29, 0.74), (0, -0.42, 0.66), 0.05, 0.04), 'coat', 'horse_head'),
+        Part(lp.ball(0.012, 0.042, -0.33, 0.745), 'dark', 'horse_head'),
+        Part(lp.ball(0.012, -0.042, -0.33, 0.745), 'dark', 'horse_head'),
+        Part(cone(0.014, 0.05, (0.025, -0.28, 0.80), 6), 'coat', 'horse_head'),
+        Part(cone(0.014, 0.05, (-0.025, -0.28, 0.80), 6), 'coat', 'horse_head'),
+        Part(hoop(0.045, 0.008, (0, -0.39, 0.675), (0, -1, -0.5)), 'trim', 'horse_head'),  # noseband
+        Part(limb((0, 0.26, 0.52), (0, 0.36, 0.30), 0.03), 'hair', 'horse_tail'),
+    ]
+    for leg, (s, e) in HORSE_LEGS.items():
+        hip, knee, hoof = (Vector((0.07 * s, 0.18 * e, z)) for z in (0.40, 0.21, 0.03))
+        parts += [Part(limb(hip, knee, 0.04, 0.03), 'coat', f'horse_leg_{leg}'),
+                  Part(limb(knee, hoof, 0.028), 'coat', f'horse_shin_{leg}'),
+                  Part(block(0.06, 0.07, 0.04, hoof + Vector((0, -0.005, -0.01)), bevel=0.012), 'dark',
+                       f'horse_shin_{leg}')]
 
-    def on_head(y, z):
-        return split[1] * (y - throat[1]) + split[2] * (z - throat[2]) > 0
+    def level(arm_up, arm_low, chest=0.0, spine=0.0):
+        """The lance's forward turn that holds it level, point ahead."""
+        return math.pi / 2 + arm_up + arm_low - chest - spine
 
-    parts = wedges(lathe(profile), [])
-    parts += [Part(neck, 'team', 'neck'), Part(head, 'team', 'head'),
-              Part(cone(0.03, 0.1, (0.045, 0.02, 1.16)), 'team', 'ear_l'),
-              Part(cone(0.03, 0.1, (-0.045, 0.02, 1.16)), 'team', 'ear_r'),
-              Part(ball(0.02, 0.1, -0.13, 0.97), 'trim', 'head'), Part(ball(0.02, -0.1, -0.13, 0.97), 'trim', 'head'),
-              Part(foot_ring(r), 'trim', 'band'), Part(ring(0.21, 0.012, 0.30), 'trim', 'collar')]
-    parts += [Part(block(0.06, 0.05, 0.08, (0, y, z)), 'trim', 'head' if on_head(y, z) else 'neck') for y, z in MANE]
-    parent = {'body': None, 's0': 'body', 's1': 'body', 's2': 'body', 'neck': 'body', 'head': 'neck',
-              'ear_l': 'head', 'ear_r': 'head', 'band': 'body', 'collar': 'body'}
-    neck_at, head_at = (0, 0.05, 0.31), (0, 0.04, 0.78)
-    ear_at = {'ear_l': (0.045, 0.02, 1.11), 'ear_r': (-0.045, 0.02, 1.11)}
+    def idle(t):  # the horse nods and flicks its tail; the rider sits easy
+        b = math.sin(TAU * t)
+        return {'horse_neck': 0.04 * b, 'horse_head': 0.05 * math.sin(2 * TAU * t), 'horse_tail': (0, 0.12 * b, 0),
+                'chest': 0.015 * b}
 
-    def flick(t, ear, centre):  # an ear twitches back once per loop
-        return turn(-0.35 * bump(t, centre, 0.04), 'X', ear_at[ear])
+    def walk(u):  # a trot: the diagonal pairs strike at u = 0 and u = 0.5, the game's footfalls
+        c, s = math.cos(TAU * (u % 1.0)), math.sin(TAU * (u % 1.0))
+        pose = {'horse_neck': 0.06 * math.cos(2 * TAU * u), 'horse_tail': (0, 0.1 * c, 0), 'spine': 0.05}
+        for leg, sign in (('fl', 1), ('hr', 1), ('fr', -1), ('hl', -1)):
+            pose[f'horse_leg_{leg}'] = 0.4 * sign * c
+            pose[f'horse_shin_{leg}'] = -0.7 * max(0.0, -sign * s)
+        return pose
 
-    def idle(t):  # nods, flicks its ears
-        return {'neck': turn(0.04 * math.sin(TAU * t), 'X', neck_at),
-                'head': turn(0.05 * math.sin(TAU * t + 1), 'X', head_at),
-                'ear_l': flick(t, 'ear_l', 0.3), 'ear_r': flick(t, 'ear_r', 0.75)}
+    gather = {'horse_body': -0.12, 'horse_neck': -0.15, 'arm_up_r': 0.3, 'arm_low_r': 0.2,
+              'weapon': level(0.3, 0.2, -0.1, 0.12), 'chest': (-0.1, 0, -0.2), 'spine': 0.12}
+    lunge = {'lift': (0, -0.12, 0), 'horse_body': 0.10, 'horse_neck': 0.25, 'horse_head': 0.1,
+             'horse_leg_fl': 0.5, 'horse_leg_fr': 0.5, 'horse_leg_hl': -0.4, 'horse_leg_hr': -0.4,
+             'arm_up_r': 0.9, 'arm_low_r': 0.1, 'weapon': level(0.9, 0.1, 0.15, 0.2), 'chest': (0.15, 0, 0.3),
+             'spine': 0.2}
+    follow = {**lunge, 'lift': (0, -0.08, 0), 'arm_up_r': 0.8, 'weapon': level(0.8, 0.1, 0.15, 0.2)}
+    rearing = {'horse_body': -0.35, 'horse_neck': -0.3, 'horse_head': -0.2, 'horse_leg_fl': 0.7,
+               'horse_leg_fr': 0.7, 'horse_shin_fl': -0.6, 'horse_shin_fr': -0.6, 'spine': -0.3, 'chest': -0.15,
+               'head': -0.2, 'arm_up_r': -0.2}
+    staggered = {**rearing, 'horse_body': -0.45, 'spine': -0.4}
+    kneeling = {'horse_body': 0.3, 'horse_neck': 0.4, 'horse_head': 0.3, 'horse_leg_fl': -0.3, 'horse_leg_fr': -0.3,
+                'horse_shin_fl': -1.8, 'horse_shin_fr': -1.8, 'horse_shin_hl': -0.5, 'horse_shin_hr': -0.5,
+                'horse_tail': 0.3, 'spine': 0.6, 'chest': 0.2, 'head': 0.5, 'arm_up_r': 0.6, 'weapon': 0.6}
 
-    def walk(u):  # a trotting bounce (the game also arcs the knight through the air), nodding on every hop
-        return {'body': bounce(u, 0.03, 0.08, 0.03), 'neck': turn(0.10 * math.sin(2 * TAU * u), 'X', neck_at)}
-
-    def attack(t):  # rears up, then strikes down with the head at the contact
-        return {'body': tip(ease(t, 0, -0.15, -0.28, 0.28, 0.05, 0), r),
-                'neck': turn(ease(t, 0, -0.15, -0.35, 0.30, 0.05, 0), 'X', neck_at),
-                'head': turn(ease(t, 0, -0.10, -0.20, 0.25, 0, 0), 'X', head_at)}
-
-    die = crumble(parts, parent, r, ['neck', 'head', 's0', 's1', 's2', 'band', 'collar'], spread=0.22, jump=0.08, tumble=1.0,
-                  special={'head': {'spread': 0.3, 'jump': 0.3, 'tumble': 2.2, 'towards': (0.3, -1, 0)},
-                           'neck': {'spread': 0.12, 'jump': 0.02, 'tumble': 1.3, 'towards': (0, -1, 0), 'start': 0.36},
-                           **{s: {'start': 0.42} for s in ('s0', 's1', 's2')}, **FLAT_BANDS})
-    return Piece(parts, parent, {'idle': (72, idle), 'walk': (30, walk), 'attack': (30, attack), 'die': (30, die)}, r)
+    return character(f, parts, {
+        'idle': (90, idle),
+        'walk': (30, walk),
+        'attack': (30, lambda t: through(t, REST, gather, gather, lunge, follow, REST)),
+        'hit': (9, lambda t: through(t, REST, rearing)),
+        'die': (30, lambda t: through(t, rearing, staggered, kneeling, kneeling)),
+    })
 
 
 PIECES['knight'] = knight
