@@ -1,7 +1,7 @@
 """Builds one living chess piece: npm run living -- <piece>  (from apps/web; Blender runs this file).
 
 Writes assets-src/living/<piece>.glb (for npm run models), <piece>.blend (to open and tune by hand) and
-<piece>-{rest,walk,attack,die}.png (to judge the look). Writes nothing if the piece breaks the clip contract.
+<piece>-{rest,walk,attack,hit,die}.png (to judge the look). Writes nothing if the piece breaks the clip contract.
 """
 import os
 import sys

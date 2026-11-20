@@ -33,7 +33,8 @@ export const TIMING = {
   hopMs: 500,
   hopHeight: 0.6,
   attackMs: 700,
-  impactAt: 0.6, // fraction of the attack clip at which the defender starts to fall
+  impactAt: 0.6, // fraction of the attack clip at which the defender is struck
+  hitMs: 300, // the defender's recoil, before it falls
   dieMs: 700,
   promoteMs: 300,
   turnMs: 150,

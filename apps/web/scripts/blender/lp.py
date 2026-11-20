@@ -14,7 +14,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 FPS = 30
-CLIPS = ('idle', 'walk', 'attack', 'die')
+CLIPS = ('idle', 'walk', 'attack', 'hit', 'die')  # hit plays before die (TIMING.hitMs)
 IMPACT = 0.6  # TIMING.impactAt in apps/web/src/scene/theme.ts: the attack's contact, as a fraction of the clip
 IDENTITY = Matrix.Identity(4)
 TWIST = 0.13  # radians: keeps cut() planes off the lathe's vertex columns, which sit every 7.5 degrees
@@ -31,6 +31,27 @@ def srgb(hex_colour):
 MAGENTA = (1.0, 0.0, 1.0, 1.0)  # GlbPiece's shader paints this the team colour
 GOLD = srgb('#E0B04A')  # red and blue both well above green, so GlbPiece leaves it alone
 RED = srgb('#B91C1C')  # PALETTE.red, for the preview renders only
+
+
+# name -> (linear RGBA, metallic, roughness, emission strength). Only 'team' may look magenta to GlbPiece's shader.
+MATERIALS = {
+    'team': (MAGENTA, 0.0, 0.25, 0.0),
+    'trim': (GOLD, 0.6, 0.3, 0.0),  # like steel: fully metallic, it mirrors the dark sky
+    'steel': (srgb('#C8CDD6'), 0.55, 0.35, 0.0),  # half metallic: fully metallic, it mirrors the dark courtyard sky
+    'dark': (srgb('#2A2A30'), 0.0, 0.5, 0.0),
+    'skin': (srgb('#E8B48C'), 0.0, 0.6, 0.0),
+    'leather': (srgb('#6B4226'), 0.0, 0.7, 0.0),
+    'wood': (srgb('#8A5A32'), 0.0, 0.65, 0.0),
+    'hair': (srgb('#5A3A22'), 0.0, 0.75, 0.0),
+    'white': (srgb('#EDEAE2'), 0.0, 0.8, 0.0),
+    'coat': (srgb('#C9BCA6'), 0.0, 0.7, 0.0),  # the knight's horse
+    'glow': (srgb('#FFE9A8'), 0.0, 0.4, 6.0),
+}
+
+
+def keyed(colour):
+    """How magenta GlbPiece's recolour shader finds a linear colour: it starts painting at 0.15 and fully at 0.35."""
+    return min(colour[0], colour[2]) - colour[1]
 
 
 def need(condition, message):
@@ -243,7 +264,7 @@ def slab(outline, thickness, bevel):
 
 TOLERANCE = 1e-4
 FLOOR = -0.01  # the lowest z any vertex may reach in any frame of any clip
-MAX_BONES = 16
+MAX_BONES = 40
 
 
 @dataclass
@@ -266,12 +287,15 @@ def reset():
     bpy.context.scene.render.fps = FPS
 
 
-def material(name, colour, metallic, roughness):
+def material(name, colour, metallic, roughness, emission=0.0):
     m = bpy.data.materials.new(name)
     bsdf = m.node_tree.nodes['Principled BSDF']
     bsdf.inputs['Base Color'].default_value = colour
     bsdf.inputs['Metallic'].default_value = metallic
     bsdf.inputs['Roughness'].default_value = roughness
+    if emission:
+        bsdf.inputs['Emission Color'].default_value = colour
+        bsdf.inputs['Emission Strength'].default_value = emission
     m.diffuse_color = colour
     m.use_backface_culling = True  # every part is a closed solid: exported single-sided
     return m
@@ -280,7 +304,9 @@ def material(name, colour, metallic, roughness):
 def assemble(name, piece):
     """The piece as one mesh object skinned to one armature: each part's vertices weighted 1.0 to its bone."""
     bones = list(piece.parent)
-    slots = ['team', 'trim']
+    for part in piece.parts:
+        need(part.material in MATERIALS, f'a part uses the unknown material {part.material}')
+    slots = [name for name in MATERIALS if any(part.material == name for part in piece.parts)]
     bm = bmesh.new()
     ranges = []
     for part in piece.parts:
@@ -306,8 +332,8 @@ def assemble(name, piece):
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)
     bm.free()
-    mesh.materials.append(material('team', MAGENTA, 0.0, 0.25))
-    mesh.materials.append(material('trim', GOLD, 1.0, 0.3))
+    for slot in slots:
+        mesh.materials.append(material(slot, *MATERIALS[slot]))
     obj = bpy.data.objects.new(name, mesh)
     for bone in bones:
         obj.vertex_groups.new(name=bone)
@@ -388,9 +414,12 @@ def check(obj, rig, piece):
     for clip in CLIPS:
         need(clip in piece.clips and clip in bpy.data.actions, f'missing clip {clip}')
     need(len(rig.data.bones) <= MAX_BONES, f'{len(rig.data.bones)} bones; at most {MAX_BONES}')
+    for m in obj.data.materials:
+        need(m.name == 'team' or keyed(m.diffuse_color) < 0.1, f'GlbPiece would paint {m.name} the team colour')
     loose = [v.index for v in obj.data.vertices if len(v.groups) != 1 or abs(v.groups[0].weight - 1) > 1e-6]
     need(not loose, f'{len(loose)} vertices are not weighted 1.0 to exactly one bone')
     rest = [IDENTITY] * len(rig.pose.bones)
+    hit_end = None
     for clip in CLIPS:
         frames = piece.clips[clip][0]
         lows, fronts, poses = [], [], []
@@ -404,8 +433,12 @@ def check(obj, rig, piece):
         need(low >= FLOOR, f'{clip} sinks {-low:.3f} below the floor at frame {lows.index(low)}')
         if clip in ('idle', 'walk'):
             need(same(poses[0], poses[-1]), f'{clip} does not loop: its last frame differs from its first')
+        elif clip == 'die':
+            need(same(poses[0], hit_end), 'die does not start where hit ends')
         else:
             need(same(poses[0], rest), f'{clip} does not start at rest')
+        if clip == 'hit':
+            hit_end = poses[-1]
         if clip == 'attack':
             need(same(poses[-1], rest), 'attack does not end at rest')
             contact, furthest = round(IMPACT * frames), fronts.index(min(fronts))
@@ -525,6 +558,7 @@ def preview(prefix, obj, rig, piece):
         'rest': ('idle', 0),
         'walk': ('walk', piece.clips['walk'][0] // 4),
         'attack': ('attack', round(IMPACT * piece.clips['attack'][0])),
+        'hit': ('hit', piece.clips['hit'][0]),
         'die': ('die', piece.clips['die'][0]),
     }
     for label, (clip, frame) in shots.items():

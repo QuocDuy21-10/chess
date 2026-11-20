@@ -67,6 +67,15 @@ test('a capture runs approach, fight, removal, then step-in, in that order', asy
   expect(pieces().find((p) => p.id === 'w-p-e4')?.square).toBe('d5');
 });
 
+test('the defender recoils from the blow, then falls', async () => {
+  const { log, deps } = setup('rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2');
+  await runSteps([{ kind: 'combat', attacker: 'w-p-e4', defender: 'b-p-d5' }], deps);
+  const at = (entry: string) => log.indexOf(entry);
+  expect(at('b-p-d5 hit start')).toBeGreaterThan(at('w-p-e4 attack start'));
+  expect(at('b-p-d5 die start')).toBeGreaterThan(at('b-p-d5 hit end'));
+  expect(at('effect')).toBeGreaterThan(at('b-p-d5 die end'));
+});
+
 test('a knight approaches its victim by hopping', async () => {
   const { log, deps } = setup('rnbqkbnr/ppp1pppp/8/3p4/8/2N5/PPPPPPPP/R1BQKBNR w KQkq - 0 2');
   await runSteps([{ kind: 'combat', attacker: 'w-n-c3', defender: 'b-p-d5' }], deps);
