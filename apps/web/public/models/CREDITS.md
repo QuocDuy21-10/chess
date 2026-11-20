@@ -6,7 +6,7 @@ The pawn is a character built on `scripts/blender/figure.py`; the others are sti
 | File | Piece |
 |---|---|
 | `pawn-4.glb` | pawn (character) |
-| `rook-2.glb` | rook |
+| `rook-3.glb` | rook (character) |
 | `bishop-3.glb` | bishop |
 | `queen-2.glb` | queen |
 | `king-3.glb` | king |
