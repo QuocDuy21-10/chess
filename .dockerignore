@@ -14,4 +14,4 @@ deploy
 apps/web/assets-src
 apps/web/scripts/blender
 apps/server/src/**/*.test.ts
-**/.env
+**/.env*
