@@ -15,7 +15,7 @@ export interface Engine {
 
 const START_MS = 15_000; // a slow download of the 1.2 MB engine fits in this
 const MOVE = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
-// Under /engine/, which next.config.ts caches as immutable: a new engine needs new file names (files.test.ts).
+// Under /engine/, which scripts/caddy-headers.ts caches as immutable: a new engine needs new file names (files.test.ts).
 export const ENGINE_SCRIPT = '/engine/stockfish-19-lite-single.js';
 export const ENGINE_WASM = '/engine/stockfish-19-lite-single.wasm'; // loaded by the worker from beside itself
 

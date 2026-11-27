@@ -1,4 +1,4 @@
-// The site's Content-Security-Policy, built at build time by next.config.ts. Static, so the page stays static:
+// The site's Content-Security-Policy, built at image build by scripts/caddy-headers.ts. Static, so the page stays static:
 // 'unsafe-inline' covers Next's inline scripts; everything a page may load or call is named here.
 
 const DEV_SERVER = 'http://localhost:3001'; // net/server.ts's fallback on localhost

@@ -4,7 +4,7 @@ import type { PieceSymbol } from 'chess.js';
 import { expect, test } from 'vitest';
 import { MODELS } from './models';
 
-// next.config.ts caches /models/* as immutable for a year, so a changed model gets a new name: <piece>-<n>.glb.
+// scripts/caddy-headers.ts caches /models/* as immutable for a year, so a changed model gets a new name: <piece>-<n>.glb.
 const PUBLIC = fileURLToPath(new URL('../../../public', import.meta.url));
 const NAMES: Record<PieceSymbol, string> = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
 const KB = 1024;
