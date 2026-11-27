@@ -1,5 +1,6 @@
 # The production stack. CI copies this directory to /opt/chess on the VPS and runs deploy.sh there;
-# /opt/chess/.env (from env.example) holds the secrets. See README, "Production (VPS)".
+# /opt/chess/.env (from env.example) holds the secrets. No port is published: the VPS's edge proxy reaches
+# web over the external network "edge". See README, "Production (VPS)".
 name: chess
 
 x-logging: &logging # Docker's own logs, capped: the VPS has 25 GB of disk
@@ -13,7 +14,8 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     logging: *logging
-    mem_limit: 384m
+    mem_limit: 192m
+    command: ['postgres', '-c', 'shared_buffers=64MB']
     environment:
       POSTGRES_USER: chess
       POSTGRES_DB: chess
@@ -30,12 +32,12 @@ services:
     image: ghcr.io/quocduy21-10/chess-server:${IMAGE_TAG:?set IMAGE_TAG (deploy.sh does)}
     restart: unless-stopped
     logging: *logging
-    mem_limit: 384m
+    mem_limit: 192m
     env_file: .env
     environment:
       DATABASE_URL: postgres://chess:${POSTGRES_PASSWORD}@postgres:5432/chess
-      NODE_OPTIONS: --max-old-space-size=256
-      TRUST_PROXY: '1' # Caddy is the one proxy in front of the server
+      NODE_OPTIONS: --max-old-space-size=128
+      TRUST_PROXY: '2' # the edge proxy, then web's Caddy
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,25 +49,27 @@ services:
       start_period: 20s
     stop_grace_period: 15s # the server closes every connection within 10 s of SIGTERM
 
-  caddy:
-    image: caddy:2-alpine
+  web:
+    image: ghcr.io/quocduy21-10/chess-web:${IMAGE_TAG:?set IMAGE_TAG (deploy.sh does)}
     restart: unless-stopped
     logging: *logging
-    mem_limit: 128m
-    environment:
-      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
-    ports:
-      - '80:80'
-      - '443:443'
-      - '443:443/udp'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+    mem_limit: 64m
     depends_on:
-      - server
+      server:
+        condition: service_healthy
+    healthcheck: # through its own proxy, so it covers the server too
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      default:
+      edge:
+        aliases: [chess-web]
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
+
+networks:
+  edge:
+    external: true # shared with the edge proxy; created once, by hand
