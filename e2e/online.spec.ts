@@ -1,6 +1,7 @@
 import { expect, test, typeMove, watch } from './fixtures.ts';
 
 test('two browsers play online through the real server, and the game reaches the profile', async ({ page, browser }) => {
+  test.slow(); // two software-rendered scenes at once: on a CI runner one click takes ~10 s, the game just over 120 s
   await page.goto('/');
   await page.getByRole('button', { name: 'Play online' }).click();
   await page.getByRole('button', { name: 'Create room' }).click();

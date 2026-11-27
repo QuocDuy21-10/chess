@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
 import { ENGINE_SCRIPT, ENGINE_WASM } from './uci';
 
-// next.config.ts caches /engine/* as immutable for a year: a file there must never change under the same name.
+// scripts/caddy-headers.ts caches /engine/* as immutable for a year: a file there must never change under the same name.
 const PUBLIC = fileURLToPath(new URL('../../public', import.meta.url));
 const SHA256: Record<string, string> = {
   '/engine/stockfish-19-lite-single.js': 'ccb130d7ff29408531c47d859a49f91d59d4f482d05a53eb1a3231a4f624c91a',

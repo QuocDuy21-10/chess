@@ -113,7 +113,9 @@ export const useOnline = create<OnlineState>((set, get) => {
     hangUp();
     set({ ...idle, status: 'connecting', roomId, error: null });
     // withCredentials: the handshake carries the sid cookie, which is who this player is to the server.
-    const opened: Socket<ServerEvents, ClientEvents> = io(serverUrl(), { withCredentials: true });
+    // WebSocket only: the server refuses a handshake without Origin, and a browser sends none on a same-origin
+    // polling request.
+    const opened: Socket<ServerEvents, ClientEvents> = io(serverUrl(), { withCredentials: true, transports: ['websocket'] });
     socket = opened;
     const enter = (id: string) =>
       opened.emit('join', { roomId: id }, (reply) => {

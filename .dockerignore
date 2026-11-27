@@ -1,14 +1,17 @@
-# Only the server's image is built from here. Keep the context small and free of local files.
+# Both images are built from here. Keep the context small and free of local files.
 **/node_modules
 **/.next
+**/out
+**/dist
 .git
 .vitest
 docs
+docs-local
 deploy
 .github
 *.md
 *.jpeg
-apps/web/*
-!apps/web/package.json
+apps/web/assets-src
+apps/web/scripts/blender
 apps/server/src/**/*.test.ts
-**/.env
+**/.env*

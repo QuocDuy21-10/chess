@@ -42,12 +42,16 @@ export default defineConfig({
         CLIENT_ORIGIN: 'http://localhost:3000',
         GITHUB_CLIENT_ID: 'e2e', // needed to start; never called
         GITHUB_CLIENT_SECRET: 'e2e',
+        TRUST_PROXY: '1', // the web image's Caddy
       },
     },
     {
-      command: 'npm run start -w @chess/web', // a production build made beforehand (README, CI)
-      cwd: '..',
+      // The site's real image (README): one origin for the site and the server, with the real headers and routing.
+      // -a stdout: Caddy logs every request to stderr, which would bury the test report. Docker's own errors still show.
+      command:
+        'docker run --rm --init -a stdout --name chess-e2e-web -p 3000:80 --add-host host.docker.internal:host-gateway -e SERVER_UPSTREAM=host.docker.internal:3001 chess-web:e2e',
       url: 'http://localhost:3000',
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 }, // a killed docker client would leave the container
       reuseExistingServer: !ci,
     },
   ],

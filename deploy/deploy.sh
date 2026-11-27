@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ships one image: ./deploy.sh <full commit SHA>
+# Ships one version (both images): ./deploy.sh <full commit SHA>
 # CI runs it over SSH after logging Docker in to ghcr.io; it also works by hand on the VPS, for a rollback.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -24,6 +24,19 @@ sed -i '/^IMAGE_TAG=/d' .env
 echo "IMAGE_TAG=$sha" >> .env
 
 docker compose pull
-docker compose up -d --wait --wait-timeout 120
-docker image prune -f
+docker compose up -d --wait --wait-timeout 120 # a failure stops here, before anything is removed
+
+# Keep this version and the one that worked before it, for a rollback: the disk is small and shared.
+good='' older=''
+if [[ -f last-good ]]; then read -r good older < last-good; fi
+if [[ $good != "$sha" ]]; then older=$good; fi
+echo "$sha $older" > last-good
+for repo in ghcr.io/quocduy21-10/chess-server ghcr.io/quocduy21-10/chess-web; do
+  for tag in $(docker image ls "$repo" --format '{{.Tag}}'); do
+    if [[ $tag != "$sha" && $tag != "$older" ]]; then
+      docker image rm "$repo:$tag" >/dev/null || echo "Could not remove $repo:$tag" >&2
+    fi
+  done
+done
+docker image prune -f # untagged images only
 echo "Deployed $sha"

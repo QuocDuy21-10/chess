@@ -1,0 +1,33 @@
+# The site and the one door to the server, inside the chess stack. TLS ends at the edge proxy in front.
+{
+	auto_https off
+	admin off
+	servers {
+		# The edge proxy is on a private Docker network: keep the client address it reports.
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	log
+
+	@api path /health /auth/* /me /me/* /socket.io/*
+	handle @api {
+		reverse_proxy {$SERVER_UPSTREAM:server:3001}
+	}
+
+	handle {
+		root * /srv
+		import /etc/caddy/headers.caddy
+		file_server {
+			precompressed zstd gzip
+		}
+	}
+
+	handle_errors 404 {
+		header Cache-Control "no-store"
+		root * /srv
+		rewrite * /404.html
+		file_server
+	}
+}

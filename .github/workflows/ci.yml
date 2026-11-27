@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  IMAGE: ghcr.io/quocduy21-10/chess-server
+  IMAGES: ghcr.io/quocduy21-10/chess
 
 jobs:
   check:
@@ -56,13 +56,14 @@ jobs:
       - name: Check the bundle against its budget
         run: npm run size -w @chess/web
       - name: Check the deploy scripts
-        run: shellcheck deploy/*.sh
+        run: shellcheck deploy/*.sh scripts/*.sh apps/server/docker/*.sh
+      - name: Check what a deploy removes
+        run: bash scripts/deploy.test.sh
       - name: Check the production compose file
         run: cp deploy/env.example deploy/.env && docker compose -f deploy/compose.yml config -q
         env:
           IMAGE_TAG: '0000000000000000000000000000000000000000'
           POSTGRES_PASSWORD: ci
-          API_DOMAIN: api.example.com
 
   e2e:
     if: github.event_name != 'workflow_dispatch' # a rollback ships an image that already passed
@@ -94,9 +95,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build -w @chess/web
-        env:
-          NEXT_PUBLIC_SERVER_URL: http://localhost:3001
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the site's image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          build-args: NEXT_PUBLIC_SERVER_URL=http://localhost:3000
+          load: true
+          tags: chess-web:e2e
+          cache-from: type=gha,scope=web-e2e
+          cache-to: type=gha,mode=max,scope=web-e2e
       - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
@@ -123,7 +132,11 @@ jobs:
       packages: write
     env:
       PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      SITE_URL: ${{ vars.SITE_URL }}
     steps:
+      - name: Require the site's address before publishing
+        if: env.PUSH == 'true'
+        run: '[[ -n $SITE_URL ]] || { echo "Set the repository variable SITE_URL" >&2; exit 1; }'
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - if: env.PUSH == 'true'
@@ -132,7 +145,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # On a pull request the image is built and thrown away, which still catches a broken Dockerfile.
+      - name: Build the server for its smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          load: true
+          tags: chess-server:smoke
+          cache-from: type=gha,scope=server
+      - run: apps/server/docker/smoke.sh chess-server:smoke
+      # On a pull request the images are built and thrown away, which still catches a broken Dockerfile.
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -140,10 +162,23 @@ jobs:
           build-args: GIT_SHA=${{ github.sha }}
           push: ${{ env.PUSH == 'true' }}
           tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.IMAGES }}-server:${{ github.sha }}
+            ${{ env.IMAGES }}-server:latest
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          build-args: |
+            NEXT_PUBLIC_SERVER_URL=${{ vars.SITE_URL || 'https://chess.example.com' }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          push: ${{ env.PUSH == 'true' }}
+          tags: |
+            ${{ env.IMAGES }}-web:${{ github.sha }}
+            ${{ env.IMAGES }}-web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   deploy:
     needs: image

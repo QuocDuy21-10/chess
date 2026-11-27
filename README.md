@@ -1,39 +1,7 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Combat Chess
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Chess where every capture is a fight: a 3D board in the browser, against a computer or another player.
+`npm install` and `npm run dev` start the site on port 3000.
 
 ## Online play
 
@@ -58,10 +26,14 @@ npm run server                   # the game server, on port 3001; applies new mi
 From the root, `npm test`, `npm run lint` and `npm run typecheck` run in every workspace. The tests need
 Postgres up and `TEST_DATABASE_URL` (in `.env`); they empty the tables of that database.
 
-`npm run e2e` runs the browser tests (Postgres up, as for `npm test`, but not at the same time: both empty
-`chess_test`). It needs a production build of the site first:
-`NEXT_PUBLIC_SERVER_URL=http://localhost:3001 npm run build -w @chess/web`. Pick one browser with
-`npm run e2e -- --project=webkit`; `npm run report -w @chess/e2e` opens the last report.
+`npm run e2e` runs the browser tests (Docker and Postgres up, as for `npm test`, but not at the same time: both
+empty `chess_test`). They play the site's real image, so build it first, and again after a change to the site:
+
+```bash
+docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_SERVER_URL=http://localhost:3000 -t chess-web:e2e .
+```
+
+Pick one browser with `npm run e2e -- --project=webkit`; `npm run report -w @chess/e2e` opens the last report.
 
 After changing `apps/server/src/schema.ts`, run `npm run db:generate -w @chess/server`, read the new file
 in `apps/server/drizzle/`, and commit it with the change.
@@ -73,14 +45,13 @@ in `apps/server/drizzle/`, and commit it with the change.
 | `NODE_ENV` | server | `production` when deployed. The Docker image sets it. |
 | `DATABASE_URL` | server | Required. `postgres://user:password@host:5432/chess`. |
 | `PUBLIC_URL` | server | The server's own origin, for the OAuth callback URLs. Required in production; unset: `http://localhost:<PORT>`. |
-| `TRUST_PROXY` | server | How many proxies stand in front of the server, so rate limits count the client's own address. Default 0; `deploy/compose.yml` sets 1 (Caddy). More than the real number lets a client choose its own address. |
+| `TRUST_PROXY` | server | How many proxies stand in front of the server, so rate limits count the client's own address. Default 0; `deploy/compose.yml` sets 2 (the edge proxy and the site's Caddy). More than the real number lets a client choose its own address. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | server | A GitHub OAuth app. Set both or neither. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | server | A Google OAuth client. Set both or neither; at least one provider is required. |
 | `TEST_DATABASE_URL` | tests | The database the tests use and empty. |
-| `NEXT_PUBLIC_SERVER_URL` | site, at build time | The server's address. Unset: port 3001 on the page's own host. |
+| `NEXT_PUBLIC_SERVER_URL` | site, at build time | The server's address; in production, the site's own. Unset: port 3001 on the page's own host (development). The site's image requires it. |
 | `SENTRY_DSN` | server | Optional. A Sentry project's DSN; unset or empty: no error reports. |
 | `NEXT_PUBLIC_SENTRY_DSN` | site, at build time | Optional. A Sentry project's DSN for the browser. |
-| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | site build | Optional. Upload source maps, for readable stack traces. |
 
 To try both sides on one computer, sign the second player in with another account in a private window or
 another browser. Two tabs of one account are the same player, and the newer tab takes the seat.
@@ -88,36 +59,27 @@ another browser. Two tabs of one account are the same player, and the newer tab 
 A phone on the same network also needs the computer's address in `allowedDevOrigins` in
 `apps/web/next.config.ts`, or the development site refuses it.
 
-### Deploying
+### Images
 
-The server ships as a Docker image, built from the repository root:
+Both are built from the repository root:
 
 ```bash
 docker build -f apps/server/Dockerfile -t chess-server .
-docker run -p 3001:3001 --env-file apps/server/.env -e CLIENT_ORIGIN=http://localhost:3000 \
-  -e PUBLIC_URL=http://localhost:3001 -e DATABASE_URL=postgres://chess:chess@host.docker.internal:5432/chess \
-  chess-server
+docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_SERVER_URL=https://chess.example.com -t chess-web .
 ```
 
-**The site and the server need one domain of your own**, such as `chess.example.com` for the site and
-`api.chess.example.com` for the server. The sign-in cookie is the server's and is sent with the site's
-requests only when both are the same site; `*.vercel.app` and `*.onrender.com` are each a public suffix,
-so a site on one and a server on the other cannot keep anyone signed in. Register the production callback
-URLs (`https://api.chess.example.com/auth/<provider>/callback`) with each OAuth app.
+`chess-server` is one bundle of the server on Alpine, with `node` and the migrations
+(`apps/server/docker/smoke.sh chess-server` checks it). `chess-web` is the site as static files in Caddy, which
+also passes `/health`, `/auth/*`, `/me` and `/socket.io/*` to the server named by `SERVER_UPSTREAM`
+(default `server:3001`), so both share one address. Online play needs WebSocket.
 
-Any managed Postgres 13 or later will do (Neon, Supabase, the host's own). The server applies pending
-migrations when it starts; two instances starting together apply them once.
+The server applies pending migrations when it starts; two instances starting together apply them once.
+`GET /health` answers `{"status":"ok"}`. On `SIGTERM` it closes every connection, finishes saving any game that
+just ended, and exits. Rooms are kept in memory, so a restart or a new deploy ends every game in progress.
 
-Any host that runs a container will do: Render, Koyeb, Fly or a VPS. Hosts may set `PORT` themselves.
-Point the host's health check at `GET /health`, which answers `{"status":"ok"}`. On `SIGTERM` the server
-closes every connection, finishes saving any game that just ended, and exits. Rooms are kept in memory,
-so a restart or a new deploy ends every game in progress. Without Docker, run `npm start -w @chess/server` on Node 22.18 or later.
-
-On Vercel, set the project's Root Directory to `apps/web`, and `NEXT_PUBLIC_SERVER_URL` to the server's
-public address.
-
-The site caches `/engine/*` for a year (the files' names carry Stockfish's version: a new engine needs new names,
-which `src/engine/files.test.ts` enforces) and `/audio/*` for a week.
+The site caches `/engine/*` and `/models/*` for a year (the files' names carry a version: a changed file needs a
+new name, which `src/engine/files.test.ts` and `src/scene/pieces/models.test.ts` enforce) and `/audio/*` for a
+week. `scripts/caddy-headers.ts` writes these headers and the security headers.
 
 The project's own setup, a VPS deployed by GitHub Actions, is described below.
 
@@ -127,33 +89,35 @@ The project's own setup, a VPS deployed by GitHub Actions, is described below.
 
 1. `check`: lint, typecheck, the tests against a Postgres service, the site's build and its size against
    `apps/web/bundle-budget.json` (`npm run size -w @chess/web` after a build; raise a budget only on purpose, in the
-   same pull request), `shellcheck` on `deploy/*.sh`, and `docker compose config` on `deploy/compose.yml`.
-2. `e2e`, one job per browser (Chromium, Firefox, WebKit) beside `check`: plays the production build against the
+   same pull request), `shellcheck` on the shell scripts, `scripts/deploy.test.sh`, and `docker compose config`
+   on `deploy/compose.yml`.
+2. `e2e`, one job per browser (Chromium, Firefox, WebKit) beside `check`: plays the site's real image against the
    real server and Postgres with Playwright: two players to checkmate, a move against the computer, the language
    setting, and an online game between two browsers. Any console error, CSP violation or missing WebGL fails it.
-3. `image`: builds the server's image. On `main` it is pushed to `ghcr.io/quocduy21-10/chess-server`, tagged
-   with the commit's SHA and `latest`.
-4. `deploy`: on `main` only, ships that image to the VPS (below).
+3. `image`: builds both images and smoke-tests the server's. On `main` it pushes
+   `ghcr.io/quocduy21-10/chess-server` and `chess-web`, tagged with the commit's SHA and `latest`. The site's
+   address is the repository variable `SITE_URL`; `NEXT_PUBLIC_SENTRY_DSN` is an optional one.
+4. `deploy`: on `main` only, ships that version to the VPS (below).
 
-A red `check` or `e2e` stops `image` and `deploy`. The site still deploys through Vercel's Git integration; in the Vercel
-project, Settings → Deployment Checks, add the GitHub check `check` so a production deployment waits for it
-(see https://vercel.com/docs/deployment-checks).
+A red `check` or `e2e` stops `image` and `deploy`.
 
 ## Production (VPS)
 
-The server runs on one VPS with Docker Compose: the server, Postgres 17 and Caddy, which gets the HTTPS
-certificate itself. `deploy/` holds the stack, and every deploy copies it to `/opt/chess`. The images are built
-by GitHub Actions, never on the VPS. Memory limits (384 MB, 384 MB, 128 MB) fit a VPS with 1.5 GB of RAM.
+The VPS runs the site, the server and Postgres 17 with Docker Compose from `deploy/`, copied to `/opt/chess` by
+every deploy. The images are built by GitHub Actions, never on the VPS. The stack publishes no port: the VPS's
+edge proxy, which owns 80 and 443 and gets the certificate, reaches the site over the Docker network `edge`.
+Memory limits (`web` 64 MB, `server` 192 MB, `postgres` 192 MB) fit a small VPS that runs other things too.
 
 ### One-time setup
 
 On the VPS, as root (Ubuntu or Debian):
 
-1. Point a DNS `A` record for the server's name, such as `api.chess.example.com`, at the VPS. The site needs a
-   name on the same domain (see "Deploying").
-2. Allow only SSH, HTTP and HTTPS:
-   `ufw allow OpenSSH && ufw allow 80,443/tcp && ufw allow 443/udp && ufw enable`
-3. Install Docker: `curl -fsSL https://get.docker.com | sh`
+1. Point a DNS `A` record for the game's name, such as `chess.example.com`, at the VPS.
+2. Allow only SSH, HTTP and HTTPS
+   (`ufw allow OpenSSH && ufw allow 80,443/tcp && ufw allow 443/udp && ufw enable`), and install Docker:
+   `curl -fsSL https://get.docker.com | sh`
+3. Create the network, `docker network create edge`, and tell the edge proxy about the game. With Caddy: join its
+   container to `edge` and add `chess.example.com { reverse_proxy chess-web:80 }`.
 4. Create the deploy user and its directory:
    ```bash
    adduser --disabled-password --gecos '' deploy
@@ -187,19 +151,23 @@ In GitHub, Settings → Environments → New environment `production`, add these
 | `VPS_SSH_KEY` | The contents of `chess-deploy` (the private key) |
 | `VPS_KNOWN_HOSTS` | The `ssh-keyscan` line you checked |
 
-Register `https://<API_DOMAIN>/auth/<provider>/callback` with each OAuth app. Then push to `main`, or run the
+Also add the repository variable `SITE_URL`, the game's address such as `https://chess.example.com`
+(Settings → Secrets and variables → Actions → Variables).
+
+Register `https://<the game's name>/auth/<provider>/callback` with each OAuth app. Then push to `main`, or run the
 workflow by hand: the first deploy starts Postgres, then the server, which creates the tables.
 
 Until the secrets exist, the `deploy` job fails on every push to `main`; `check` and `image` are unaffected.
 
 ### Every deploy
 
-`deploy.sh <sha>` backs up the database, pulls the new image, starts it, waits until `/health` answers, and
-removes old images. If the new server never turns healthy, the job fails.
+`deploy.sh <sha>` backs up the database, pulls both images, starts them, waits until `/health` answers through the
+site, and keeps only this version and the one that worked before it. If the new version never turns healthy, the
+job fails and nothing is removed.
 
-**Rollback:** Actions → CI → Run workflow, on `main`, with the full SHA of an earlier commit (its image is in
-GHCR). The scripts and compose file come from the current `main`; only the image is the old one. On the VPS,
-`/opt/chess/deploy.sh <sha>` does the same after `docker login ghcr.io` (needed only if the package is private).
+**Rollback:** Actions → CI → Run workflow, on `main`, with the full SHA of an earlier commit (its images are in
+GHCR). The scripts and compose file come from the current `main`; only the images are old ones. On the VPS,
+`/opt/chess/deploy.sh <sha>` does the same after `docker login ghcr.io` (needed only if the packages are private).
 Rolling back past a migration that removed or renamed something can leave the old code facing a newer schema:
 restore the backup taken before that deploy too (see "Restore").
 
@@ -208,7 +176,7 @@ Useful commands in `/opt/chess`:
 ```bash
 docker compose ps
 docker compose logs -f server | jq    # one JSON line per event
-docker compose logs caddy             # HTTP access log
+docker compose logs web               # HTTP access log
 ```
 
 ### Backups
@@ -262,10 +230,10 @@ docker compose start server
 ## Monitoring
 
 - **Logs:** the server writes one JSON line per event (`Listening`, `Game over`, errors with their stack);
-  Caddy writes the HTTP access log. Docker keeps 30 MB per service.
+  `web` writes the HTTP access log. Docker keeps 30 MB per service.
 - **Errors:** create two projects on sentry.io, Node.js and Next.js. Put the first one's DSN in `SENTRY_DSN` in
-  `/opt/chess/.env` and run `docker compose up -d` there. On Vercel, set `NEXT_PUBLIC_SENTRY_DSN`, and for readable
-  stack traces `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT`.
+  `/opt/chess/.env` and run `docker compose up -d` there. Set the second one as the repository variable
+  `NEXT_PUBLIC_SENTRY_DSN` and deploy.
 - **Uptime:** on a free plan of Better Stack or UptimeRobot, create an HTTP monitor on
-  `https://<API_DOMAIN>/health` every minute, and a heartbeat monitor that expects a ping at least every 25 hours;
+  `https://<the game's name>/health` every minute, and a heartbeat monitor that expects a ping at least every 25 hours;
   put its URL in `BACKUP_HEARTBEAT_URL`. A missing ping means the nightly backup did not finish.
